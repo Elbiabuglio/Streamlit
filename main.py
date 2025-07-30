@@ -100,7 +100,8 @@ if file_upload:
 
     }
 
-    tab_stats, tab_abs, tab_rel = exp3.tabs(["📊 Dados", "📈 Histórico de Evolução", "📉 Crescimento Relativo"])
+    tab_stats, tab_abs, tab_rel = exp3.tabs(
+        ["📊 Dados", "📈 Histórico de Evolução", "📉 Crescimento Relativo"])
 
     with tab_stats:
         st.dataframe(df_stats, hide_index=True, column_config=columns_config)
@@ -120,7 +121,7 @@ if file_upload:
         "Média 24M Diferença Mensal Absoluta",
     ]
     st.line_chart(df_stats[abs_cols])
-    
+
     with tab_rel:
         rel_cols = [
             "Diferença Mensal Rel",
@@ -129,3 +130,48 @@ if file_upload:
             "Evolução 24M Relativa",
         ]
         st.line_chart(data=df_stats[rel_cols])
+
+    with st.expander("📊 Metas"):
+
+        col1, col2 = st.columns(2)
+
+        data_inicio_meta = st.date_input(
+            "📅 Data de Início da Meta", max_value=df["Data"].max())
+
+        filter_data = df_stats.index <= data_inicio_meta
+        data_filtrada = df_stats[filter_data].iloc[-1]
+
+        custos_fixos = col1.number_input(
+            "Custos Fixos (R$)", min_value=0., format="%.2f")
+
+        salario_bruto = col2.number_input(
+            "Salário Bruto (R$)", min_value=0., format="%.2f")
+        salario_liquido = col2.number_input(
+            "Salário Líquido (R$)", min_value=0., format="%.2f")
+
+        valor_inicio = df_stats.loc[data_inicio_meta, "Valor"]
+        col1.markdown(f"**Valor no Início da Meta**: R$ {valor_inicio:.2f}")
+
+        col1_pot, _, col2_pot = st.columns(3)
+        mensal = salario_liquido - custos_fixos
+        anual = mensal * 12
+        
+        
+        with col1_pot.container(border=True):
+            st.markdown("**Potencial Arrecadação**")
+        col1_pot.markdown(
+            f"''**Potencial Arrecadação Mês**:\n\n R$ {mensal:.2f}"'')
+
+        with col2_pot.container(border=True):
+            st.markdown(
+                f"''**Potencial Arrecadação Ano**:\n\n R$ {anual:.2f}"'')
+        
+        with st.container(border=True):
+            col1_meta, col2_meta = st.columns(2)
+            with col1_meta:
+                meta_estimada = st.number_input("Meta Estimada (R$)", min_value=0., format="%.2f")
+
+            with col2_meta.container(border=True):
+                patrimonio_final = meta_estimada + valor_inicio
+                st.markdown(f"Patrimonio Estimado pos Meta (R$): {patrimonio_final:.2f}")
+            
