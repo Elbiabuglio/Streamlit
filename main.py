@@ -5,6 +5,10 @@ import datetime
 import calendar
 from datetime import date, timedelta
 
+# Imports para CSS e HTML separados
+from styles.calendar_css import get_calendar_css
+from templates.html_templates import get_calendar_html_template, get_weekday_html, get_calendar_day_html, get_footer_html
+
 
 @st.cache_data(ttl="1day")
 def get_selic():
@@ -24,84 +28,7 @@ def create_calendar_widget():
     """Cria um widget de calendário mais intuitivo"""
 
     # CSS personalizado para o calendário
-    st.markdown("""
-    <style>
-    .calendar-container {
-        background: white;
-        border-radius: 10px;
-        padding: 20px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        margin: 10px 0;
-        max-width: 600px;
-        margin: 0 auto;
-    }
-    .calendar-header {
-        text-align: center;
-        margin-bottom: 20px;
-        font-weight: bold;
-        font-size: 18px;
-        color: #1976d2;
-    }
-    .weekday-header {
-        display: grid;
-        grid-template-columns: repeat(7, 1fr);
-        gap: 2px;
-        margin-bottom: 10px;
-        background: #1976d2;
-        border-radius: 8px;
-        padding: 12px 8px;
-    }
-    .weekday-name {
-        text-align: center;
-        font-weight: bold;
-        color: white;
-        font-size: 14px;
-        padding: 5px;
-    }
-    .calendar-grid {
-        display: grid;
-        grid-template-columns: repeat(7, 1fr);
-        gap: 2px;
-        border: 1px solid #e1e5e9;
-        border-radius: 8px;
-        padding: 8px;
-        background: #f8f9fa;
-    }
-    .calendar-day {
-        aspect-ratio: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border: 1px solid #e1e5e9;
-        border-radius: 6px;
-        cursor: pointer;
-        transition: all 0.2s;
-        background: white;
-        font-weight: 500;
-        min-height: 40px;
-    }
-    .calendar-day:hover {
-        background: #e3f2fd;
-        border-color: #1976d2;
-        transform: scale(1.05);
-    }
-    .calendar-day.selected {
-        background: #1976d2;
-        color: white;
-        border-color: #1976d2;
-    }
-    .calendar-day.today {
-        background: #ff9800;
-        color: white;
-        border-color: #f57c00;
-        font-weight: bold;
-    }
-    .calendar-day.other-month {
-        color: #bbb;
-        background: #f5f5f5;
-    }
-    </style>
-    """, unsafe_allow_html=True)
+    st.markdown(get_calendar_css(), unsafe_allow_html=True)
 
     # Interface do calendário
     col1, col2, col3 = st.columns([1, 2, 1])
@@ -142,28 +69,21 @@ def create_calendar_widget():
                    "Quarta", "Quinta", "Sexta", "Sábado"]
     dias_semana_abrev = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
 
-    calendar_html = f"""
-    <div class="calendar-container">
-        <div class="calendar-header">
-            📅 {meses[mes_selecionado-1]} {ano_selecionado}
-        </div>
-        <div class="weekday-header">
-    """
-
-    # Adicionar cabeçalhos dos dias da semana
+    # Gerar HTML dos dias da semana
+    dias_semana_html = ""
+    weekday_template = get_weekday_html()
     for dia_abrev in dias_semana_abrev:
-        calendar_html += f'<div class="weekday-name">{dia_abrev}</div>'
+        dias_semana_html += weekday_template.format(dia=dia_abrev)
 
-    calendar_html += """
-        </div>
-        <div class="calendar-grid">
-    """
+    # Gerar HTML dos dias do calendário
+    dias_calendario_html = ""
+    day_template = get_calendar_day_html()
 
-    # Adicionar os dias do calendário
     for semana in cal:
         for dia in semana:
             if dia == 0:
-                calendar_html += '<div class="calendar-day other-month"></div>'
+                dias_calendario_html += day_template.format(
+                    classes="calendar-day other-month", dia="")
             else:
                 data_atual = date(ano_selecionado, mes_selecionado, dia)
                 classes = "calendar-day"
@@ -171,12 +91,16 @@ def create_calendar_widget():
                 if data_atual == hoje:
                     classes += " today"
 
-                calendar_html += f'<div class="{classes}">{dia}</div>'
+                dias_calendario_html += day_template.format(
+                    classes=classes, dia=dia)
 
-    calendar_html += """
-        </div>
-    </div>
-    """
+    # Usar template principal para gerar o HTML completo
+    calendar_html = get_calendar_html_template().format(
+        mes_nome=meses[mes_selecionado-1],
+        ano=ano_selecionado,
+        dias_semana_html=dias_semana_html,
+        dias_calendario_html=dias_calendario_html
+    )
 
     st.markdown(calendar_html, unsafe_allow_html=True)
 
@@ -556,9 +480,4 @@ if file_upload:
 
 # Rodapé com informações adicionais
 st.markdown("---")
-st.markdown("""
-<div style='text-align: center; color: #666; padding: 20px;'>
-    📱 <strong>Dica:</strong> Use o calendário para visualizar informações específicas de cada mês!<br>
-    💡 Para melhores resultados, mantenha seus dados financeiros sempre atualizados.
-</div>
-""", unsafe_allow_html=True)
+st.markdown(get_footer_html(), unsafe_allow_html=True)
