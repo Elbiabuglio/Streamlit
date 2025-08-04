@@ -1,0 +1,8 @@
+# Requirements.txt alternativo para Streamlit Cloud
+# Use este se o principal falhar
+
+streamlit>=1.28.0,<1.35.0
+pandas>=2.0.0,<2.2.0
+requests>=2.30.0,<2.32.0
+numpy>=1.23.0,<1.26.0
+plotly>=5.10.0,<5.20.0

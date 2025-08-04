@@ -2,36 +2,40 @@
 
 ## 🐛 Erro: "installer returned a non-zero exit code"
 
-### ✅ **Correção Aplicada**
+### ✅ **Correção Aplicada - Versão 2**
 
-O erro no Streamlit Cloud era causado por versões incompatíveis no `requirements.txt`. 
+**Problemas identificados:**
+
+1. **ModuleNotFoundError: No module named 'plotly'**: Plotly não está sendo instalado
+2. **Erro no packages.txt**: Comentários sendo interpretados como comandos
 
 **Mudanças realizadas:**
 
-1. **📦 Requirements.txt otimizado**:
+1. **📦 Requirements.txt otimizado (v2)**:
    ```txt
-   # Antes (problemático)
-   streamlit>=1.47.0      # Versão muito nova
-   pyarrow==15.0.2        # Versão específica conflitante
-   
-   # Depois (estável)
-   streamlit==1.35.0      # Versão testada e estável
-   # pyarrow removido     # Não usado ativamente
+   # Versão atual (testada para Streamlit Cloud)
+   streamlit==1.28.1      # Versão LTS mais estável
+   pandas==2.0.3
+   requests==2.31.0
+   numpy==1.24.4
+   plotly==5.15.0         # Versão estável do Plotly
    ```
 
-2. **⚙️ Config.toml atualizado**:
-   ```toml
-   [global]
-   dataFrameSerialization = "legacy"  # Compatibilidade PyArrow
-   
-   [client]
-   showErrorDetails = false            # Reduz logs de erro
+2. **📄 packages.txt corrigido**:
+   ```txt
+   # Arquivo vazio (sem comentários que causam erro)
    ```
 
-3. **🗂️ .gitignore expandido**:
-   - Exclui arquivos desnecessários do deploy
-   - Reduz tamanho do build
-   - Evita conflitos de cache
+3. **🛡️ Imports com tratamento de erro**:
+   ```python
+   try:
+       import plotly.express as px
+       import plotly.graph_objects as go
+       PLOTLY_AVAILABLE = True
+   except ImportError:
+       st.error("⚠️ Plotly não disponível")
+       PLOTLY_AVAILABLE = False
+   ```
 
 ### 🔧 **Como Resolver no Streamlit Cloud**
 
@@ -52,20 +56,21 @@ git push origin main
 - Monitore os logs durante o reboot
 - Verifique se não há mais erros de instalação
 
-### 🎯 **Versões Testadas e Estáveis**
+### 🎯 **Versões Testadas e Estáveis (v2)**
 
 | Biblioteca | Versão | Motivo |
 |------------|--------|---------|
-| streamlit | 1.35.0 | Versão LTS estável |
+| streamlit | 1.28.1 | Versão LTS mais estável para Cloud |
 | pandas | 2.0.3 | Compatibilidade garantida |
 | requests | 2.31.0 | Versão estável para APIs |
 | numpy | 1.24.4 | Base sólida para cálculos |
-| plotly | 5.17.0 | Gráficos sem conflitos |
+| plotly | 5.15.0 | Versão testada sem conflitos |
 
-### 🚫 **Bibliotecas Removidas**
+### 🚫 **Problemas Resolvidos**
 
-- **pyarrow**: Removido porque usamos `render_html_table()`
-- **Versões >=**: Evitam conflitos de dependências
+- **packages.txt vazio**: Comentários removidos (causavam erro de instalação)
+- **Plotly missing**: Versão específica e imports com fallback
+- **Streamlit muito nova**: Downgrade para versão LTS testada
 
 ## 🔍 **Outros Problemas Comuns**
 

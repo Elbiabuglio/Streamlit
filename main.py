@@ -4,8 +4,15 @@ import requests
 import datetime
 import calendar
 from datetime import date, timedelta
-import plotly.express as px
-import plotly.graph_objects as go
+
+# Imports com tratamento de erro para Streamlit Cloud
+try:
+    import plotly.express as px
+    import plotly.graph_objects as go
+    PLOTLY_AVAILABLE = True
+except ImportError:
+    st.error("⚠️ Plotly não disponível. Instale com: pip install plotly")
+    PLOTLY_AVAILABLE = False
 
 # Imports CSS/HTML temporariamente removidos para debug
 # from styles.calendar_css import get_calendar_css
@@ -44,6 +51,14 @@ def render_line_chart(df, title="Gráfico de Linhas", container=None):
     """
     Renderiza um gráfico de linhas usando Plotly (sem dependência do PyArrow)
     """
+    if not PLOTLY_AVAILABLE:
+        error_msg = "⚠️ Plotly não disponível para renderizar gráficos"
+        if container:
+            container.error(error_msg)
+        else:
+            st.error(error_msg)
+        return
+    
     try:
         fig = px.line(df, title=title)
         fig.update_layout(
@@ -69,6 +84,14 @@ def render_bar_chart(data, title="Gráfico de Barras", container=None):
     """
     Renderiza um gráfico de barras usando Plotly (sem dependência do PyArrow)
     """
+    if not PLOTLY_AVAILABLE:
+        error_msg = "⚠️ Plotly não disponível para renderizar gráficos"
+        if container:
+            container.error(error_msg)
+        else:
+            st.error(error_msg)
+        return
+    
     try:
         if isinstance(data, pd.Series):
             fig = px.bar(x=data.index, y=data.values, title=title)

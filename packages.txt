@@ -1,2 +1,1 @@
-# Dependências do sistema Linux para Streamlit Cloud (se necessário)
-# Este arquivo está vazio pois o projeto usa apenas bibliotecas Python puras
+

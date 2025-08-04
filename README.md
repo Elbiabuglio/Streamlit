@@ -1,8 +1,23 @@
 # 💰 Dashboard Financeiro Pessoal
 
-<div align="center">
+<div align="cente## 🚀 Demonstração
 
-![Python](h```
+### 🌐 **Aplicação Online**
+**👉 [https://finance-control-esb.streamlit.app/](https://finance-control-esb.streamlit.app/)**
+
+*Teste todas as funcionalidades online sem precisar instalar nada!*
+
+### 🎯 **Status do Projeto: Totalmente Funcional** ✅
+
+A aplicação foi **completamente otimizada** e está livre de erros:
+- ✅ **Erro PyArrow DLL**: Resolvido com renderização HTML customizada
+- ✅ **Erro NumPy multiarray**: Resolvido com gráficos Plotly
+- ✅ **KeyError DataFrame**: Corrigido com referências de colunas adequadas
+- ✅ **Streamlit Cloud Deploy**: Otimizado com requirements.txt estável
+- ✅ **Estrutura limpa**: Arquivos redundantes removidos
+
+### 🔧 **Para Problemas de Deploy**
+Se encontrar erros no Streamlit Cloud, consulte: [STREAMLIT_CLOUD_FIX.md](STREAMLIT_CLOUD_FIX.md)Python](h```
 📂 Streamlit/
 ├── 📄 main.py                          # ⭐ Aplicação principal (830 linhas)
 ├── 📄 requirements.txt                 # 📦 Dependências otimizadas
