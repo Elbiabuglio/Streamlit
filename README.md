@@ -2,7 +2,24 @@
 
 <div align="center">
 
-![Python](https://img.shields.io/badge/Python-3.12+-blue.svg)
+![Python](h```
+📂 Streamlit/
+├── 📄 main.py                          # ⭐ Aplicação principal (830 linhas)
+├── 📄 requirements.txt                 # 📦 Dependências otimizadas
+├── 📄 README.md                        # 📚 Documentação completa
+├── 📄 DOCKER.md                        # 🐳 Guia Docker detalhado
+├── 📄 Dockerfile                       # 🐳 Configuração Docker
+├── 📄 docker-compose.yml               # 🐳 Orquestração de containers
+├── 📄 .dockerignore                    # 🐳 Exclusões para build Docker
+├── 📄 Template Controle Financeiro.CSV # 📊 Arquivo exemplo
+├── 📂 styles/                          # 🎨 Estilos modulares
+│   ├── 📄 calendar_css.py             # 📅 CSS do calendário
+│   ├── 📄 main_css.py                 # 🎨 CSS principal
+│   └── 📄 main_css_fixed.py           # 🔧 CSS corrigido
+├── 📂 templates/                       # 🏗️ Templates HTML
+│   └── 📄 html_templates.py           # 📝 Templates reutilizáveis
+└── 📂 __pycache__/                     # 🔄 Cache Python
+```elds.io/badge/Python-3.12+-blue.svg)
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.47+-red.svg)
 ![Plotly](https://img.shields.io/badge/Plotly-5.0+-green.svg)
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
@@ -161,28 +178,28 @@ pip install -r requirements.txt
 streamlit run main.py
 ```
 
-### 🐳 Usando Docker (Opcional)
+### 🐳 **Docker (Opcional)**
 
-```dockerfile
-# Dockerfile
-FROM python:3.9-slim
-
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-
-COPY . .
-
-EXPOSE 8501
-
-CMD ["streamlit", "run", "main.py", "--server.address", "0.0.0.0"]
-```
+Para quem prefere containerização ou deploy em produção:
 
 ```bash
-# Construir e executar
+# Opção A: Docker Compose (Mais simples)
+docker-compose up --build
+# Acesse: http://localhost:8501
+
+# Opção B: Docker tradicional
 docker build -t dashboard-financeiro .
 docker run -p 8501:8501 dashboard-financeiro
 ```
+
+📖 **Guia completo**: Veja [DOCKER.md](DOCKER.md) para instruções detalhadas.
+
+### ⚡ **Comparação: Execução Direta vs Docker**
+
+| Método | Prós | Contras | Recomendado para |
+|--------|------|---------|------------------|
+| **Execução Direta** | 🚀 Mais rápido<br>🔧 Debug fácil<br>📦 Menos recursos | 🐍 Dependências Python<br>🏠 Só ambiente local | Uso pessoal, desenvolvimento |
+| **Docker** | 🌐 Deploy fácil<br>🛡️ Isolamento<br>📊 Portabilidade | 📈 Mais recursos<br>🔧 Setup inicial | Produção, compartilhamento |
 
 ---
 
