@@ -4,10 +4,95 @@ import requests
 import datetime
 import calendar
 from datetime import date, timedelta
+import plotly.express as px
+import plotly.graph_objects as go
 
 # Imports CSS/HTML temporariamente removidos para debug
 # from styles.calendar_css import get_calendar_css
 # from styles.main_css import get_main_css, get_custom_header
+
+
+def render_html_table(df, container=None):
+    """
+    Renderiza uma tabela HTML sem dependência do PyArrow
+    """
+    html_table = "<div style='overflow-x: auto;'><table style='width: 100%; border-collapse: collapse; font-family: Arial, sans-serif;'>"
+    html_table += "<thead><tr style='background-color: #f0f2f6; border-bottom: 2px solid #ddd;'>"
+
+    # Cabeçalhos
+    for col in df.columns:
+        html_table += f"<th style='padding: 12px; text-align: left; font-weight: bold;'>{col}</th>"
+    html_table += "</tr></thead><tbody>"
+
+    # Dados
+    for idx, row in df.iterrows():
+        html_table += "<tr style='border-bottom: 1px solid #eee;'>"
+        for col in df.columns:
+            value = row[col] if pd.notnull(row[col]) else "-"
+            html_table += f"<td style='padding: 10px; text-align: left;'>{value}</td>"
+        html_table += "</tr>"
+
+    html_table += "</tbody></table></div>"
+
+    if container:
+        container.markdown(html_table, unsafe_allow_html=True)
+    else:
+        st.markdown(html_table, unsafe_allow_html=True)
+
+
+def render_line_chart(df, title="Gráfico de Linhas", container=None):
+    """
+    Renderiza um gráfico de linhas usando Plotly (sem dependência do PyArrow)
+    """
+    try:
+        fig = px.line(df, title=title)
+        fig.update_layout(
+            showlegend=True,
+            height=400,
+            xaxis_title="Data",
+            yaxis_title="Valor",
+            font=dict(size=12)
+        )
+        if container:
+            container.plotly_chart(fig, use_container_width=True)
+        else:
+            st.plotly_chart(fig, use_container_width=True)
+    except Exception as e:
+        error_msg = f"⚠️ Erro ao renderizar gráfico de linhas: {e}"
+        if container:
+            container.error(error_msg)
+        else:
+            st.error(error_msg)
+
+
+def render_bar_chart(data, title="Gráfico de Barras", container=None):
+    """
+    Renderiza um gráfico de barras usando Plotly (sem dependência do PyArrow)
+    """
+    try:
+        if isinstance(data, pd.Series):
+            fig = px.bar(x=data.index, y=data.values, title=title)
+        else:
+            fig = px.bar(data, title=title)
+
+        fig.update_layout(
+            showlegend=True,
+            height=400,
+            xaxis_title="Categoria",
+            yaxis_title="Valor",
+            font=dict(size=12)
+        )
+        if container:
+            container.plotly_chart(fig, use_container_width=True)
+        else:
+            st.plotly_chart(fig, use_container_width=True)
+    except Exception as e:
+        error_msg = f"⚠️ Erro ao renderizar gráfico de barras: {e}"
+        if container:
+            container.error(error_msg)
+        else:
+            st.error(error_msg)
+
 # from templates.html_templates import get_calendar_html_template, get_weekday_html, get_calendar_day_html, get_footer_html
 
 
@@ -470,8 +555,31 @@ def main_metas(df_stats):
             "Atingimento Ano": st.column_config.NumberColumn("Atingimento Ano", format="%.1f%%")
         }
 
-        st.dataframe(meses, column_config=meses_config,
-                     use_container_width=True)
+        # Formatando meses para exibição
+        meses_display = meses.copy()
+
+        # Formatando colunas de valor (que realmente existem)
+        meses_display["Meta Mensal"] = meses_display["Meta Mensal"].apply(
+            lambda x: f"R$ {x:.2f}" if pd.notnull(x) else "-"
+        )
+        meses_display["Valor"] = meses_display["Valor"].apply(
+            lambda x: f"R$ {x:.2f}" if pd.notnull(x) else "-"
+        )
+
+        # Formatando colunas percentuais
+        meses_display["Atingimento (%)"] = meses_display["Atingimento (%)"].apply(
+            lambda x: f"{x:.1f}%" if pd.notnull(x) else "-"
+        )
+        meses_display["Atingimento Ano"] = meses_display["Atingimento Ano"].apply(
+            lambda x: f"{x:.1f}%" if pd.notnull(x) else "-"
+        )
+
+        # Formatando Atingimento Esperado (valor decimal)
+        meses_display["Atingimento Esperado"] = meses_display["Atingimento Esperado"].apply(
+            lambda x: f"{x:.3f}" if pd.notnull(x) else "-"
+        )
+
+        render_html_table(meses_display)
 
     # Retornar os valores solicitados incluindo o DataFrame meses
     return data_inicio_meta, valor_inicio, meta_estimada, patrimonio_final, meses
@@ -560,11 +668,13 @@ if file_upload:
 
     exp1 = st.expander("📊 Visualizar Dados", expanded=False)
     df["Valor"] = df["Valor"].astype(float)
-    columns_fmt = {"Valor": st.column_config.NumberColumn(
-        "Valor", format="R$ %.2f")}
+
+    # Formatando a coluna Valor para exibição
+    df_display = df.copy()
+    df_display["Valor"] = df_display["Valor"].apply(lambda x: f"R$ {x:.2f}")
+
     exp1.markdown("### 💾 Dados Carregados")
-    exp1.dataframe(df, hide_index=True, column_config=columns_fmt,
-                   use_container_width=True)
+    render_html_table(df_display, exp1)
 
     exp2 = st.expander("📊 Análise por Instituição", expanded=False)
     df_instituicao = df.pivot_table(
@@ -575,18 +685,24 @@ if file_upload:
 
     with tab_data:
         st.markdown("### 🏦 Dados Organizados por Instituição")
-        st.dataframe(df_instituicao, use_container_width=True)
+        # Formatando valores para exibição em tabela
+        df_instituicao_display = df_instituicao.copy()
+        for col in df_instituicao_display.columns:
+            df_instituicao_display[col] = df_instituicao_display[col].apply(
+                lambda x: f"R$ {x:.2f}" if pd.notnull(x) else "-"
+            )
+        render_html_table(df_instituicao_display)
 
     with tab_history:
         st.markdown("### 📈 Evolução Temporal por Instituição")
-        st.line_chart(df_instituicao, use_container_width=True)
+        render_line_chart(df_instituicao, "Evolução por Instituição")
 
     with tb_share:
         st.markdown("### 📊 Participação por Data Selecionada")
         date = st.selectbox("📅 Selecione uma data",
                             options=sorted(df_instituicao.index),
                             key="data_participacao")
-        st.bar_chart(df_instituicao.loc[date])
+        render_bar_chart(df_instituicao.loc[date], f"Participação em {date}")
 
     exp3 = st.expander("📊 Estatísticas Gerais", expanded=False)
 
@@ -611,7 +727,23 @@ if file_upload:
         ["📊 Dados", "📈 Histórico de Evolução", "📉 Crescimento Relativo"])
 
     with tab_stats:
-        st.dataframe(df_stats, column_config=columns_config)
+        # Formatando df_stats para exibição
+        df_stats_display = df_stats.copy()
+        # Formatando colunas de valor (R$)
+        valor_cols = [
+            col for col in df_stats_display.columns if 'Valor' in col or 'Diferença' in col]
+        for col in valor_cols:
+            if 'Rel' not in col:  # Se não for relativo (percentual)
+                df_stats_display[col] = df_stats_display[col].apply(
+                    lambda x: f"R$ {x:.2f}" if pd.notnull(x) else "-"
+                )
+        # Formatando colunas percentuais
+        perc_cols = [col for col in df_stats_display.columns if 'Rel' in col]
+        for col in perc_cols:
+            df_stats_display[col] = df_stats_display[col].apply(
+                lambda x: f"{x:.2%}" if pd.notnull(x) else "-"
+            )
+        render_html_table(df_stats_display)
 
     with tab_abs:
         abs_cols = [
@@ -620,7 +752,7 @@ if file_upload:
             "Média 12M Diferença Mensal Absoluta",
             "Média 24M Diferença Mensal Absoluta",
         ]
-        st.line_chart(df_stats[abs_cols])
+        render_line_chart(df_stats[abs_cols], "Evolução Absoluta")
 
     with tab_rel:
         rel_cols = [
@@ -629,7 +761,7 @@ if file_upload:
             "Evolução 12M Relativa",
             "Evolução 24M Relativa",
         ]
-        st.line_chart(data=df_stats[rel_cols])
+        render_line_chart(df_stats[rel_cols], "Evolução Relativa (%)")
 
     with st.expander("📊 Metas Financeiras", expanded=False):
         # Estrutura de tabs para organizar a seção de metas
@@ -665,7 +797,8 @@ if file_upload:
             st.markdown("### 📈 Gráficos das Metas")
             # Aqui você pode adicionar gráficos relacionados às metas
             if 'data_inicio_meta' in locals():
-                st.line_chart(meses["Atingimento Ano"])
+                render_line_chart(
+                    meses[["Atingimento Ano"]], "Atingimento de Meta Anual (%)")
 
         # Informações do dataset
     with st.expander("ℹ️ Informações do Dataset"):
