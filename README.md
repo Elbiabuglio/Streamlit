@@ -21,12 +21,16 @@ Se encontrar erros no Streamlit Cloud, consulte: [STREAMLIT_CLOUD_FIX.md](STREAM
 📂 Streamlit/
 ├── 📄 main.py                          # ⭐ Aplicação principal (830 linhas)
 ├── 📄 requirements.txt                 # 📦 Dependências otimizadas
+├── 📄 packages.txt                     # 📦 Dependências sistema (vazio)
 ├── 📄 README.md                        # 📚 Documentação completa
 ├── 📄 DOCKER.md                        # 🐳 Guia Docker detalhado
+├── 📄 STREAMLIT_CLOUD_FIX.md           # 🚨 Troubleshooting Cloud
 ├── 📄 Dockerfile                       # 🐳 Configuração Docker
 ├── 📄 docker-compose.yml               # 🐳 Orquestração de containers
 ├── 📄 .dockerignore                    # 🐳 Exclusões para build Docker
 ├── 📄 Template Controle Financeiro.CSV # 📊 Arquivo exemplo
+├── 📂 .streamlit/                      # ⚙️ Configurações Streamlit
+│   └── 📄 config.toml                 # ⚙️ Config produção
 ├── 📂 styles/                          # 🎨 Estilos modulares
 │   ├── 📄 calendar_css.py             # 📅 CSS do calendário
 │   ├── 📄 main_css.py                 # 🎨 CSS principal
