@@ -11,9 +11,9 @@
 
 **Mudanças realizadas:**
 
-1. **📦 Requirements.txt otimizado (v2)**:
+1. **📦 Requirements.txt otimizado (final)**:
    ```txt
-   # Versão atual (testada para Streamlit Cloud)
+   # Versões estáveis para Streamlit Cloud
    streamlit==1.28.1      # Versão LTS mais estável
    pandas==2.0.3
    requests==2.31.0
@@ -71,6 +71,7 @@ git push origin main
 - **packages.txt vazio**: Comentários removidos (causavam erro de instalação)
 - **Plotly missing**: Versão específica e imports com fallback
 - **Streamlit muito nova**: Downgrade para versão LTS testada
+- **Estrutura limpa**: Apenas um requirements.txt necessário
 
 ## 🔍 **Outros Problemas Comuns**
 

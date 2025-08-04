@@ -58,7 +58,7 @@ def render_line_chart(df, title="Gráfico de Linhas", container=None):
         else:
             st.error(error_msg)
         return
-    
+
     try:
         fig = px.line(df, title=title)
         fig.update_layout(
@@ -91,7 +91,7 @@ def render_bar_chart(data, title="Gráfico de Barras", container=None):
         else:
             st.error(error_msg)
         return
-    
+
     try:
         if isinstance(data, pd.Series):
             fig = px.bar(x=data.index, y=data.values, title=title)
