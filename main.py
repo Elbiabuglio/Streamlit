@@ -5,9 +5,10 @@ import datetime
 import calendar
 from datetime import date, timedelta
 
-# Imports para CSS e HTML separados
-from styles.calendar_css import get_calendar_css
-from templates.html_templates import get_calendar_html_template, get_weekday_html, get_calendar_day_html, get_footer_html
+# Imports CSS/HTML temporariamente removidos para debug
+# from styles.calendar_css import get_calendar_css
+# from styles.main_css import get_main_css, get_custom_header
+# from templates.html_templates import get_calendar_html_template, get_weekday_html, get_calendar_day_html, get_footer_html
 
 
 @st.cache_data(ttl="1day")
@@ -27,10 +28,7 @@ def get_selic():
 def create_calendar_widget():
     """Cria um widget de calendário mais intuitivo"""
 
-    # CSS personalizado para o calendário
-    st.markdown(get_calendar_css(), unsafe_allow_html=True)
-
-    # Interface do calendário
+    # Interface do calendário (CSS temporariamente removido)
     col1, col2, col3 = st.columns([1, 2, 1])
 
     with col2:
@@ -48,61 +46,115 @@ def create_calendar_widget():
                 options=list(range(1, 13)),
                 format_func=lambda x: meses[x-1],
                 index=datetime.date.today().month - 1,  # Mês atual como padrão
-                key="mes_calendario"
+                key="mes_calendario_widget"
             )
 
         with col_ano:
+            ano_atual = datetime.date.today().year
+            # Anos: 2024, 2025, 2026, 2027
+            anos_disponiveis = list(range(ano_atual - 1, ano_atual + 3))
             ano_selecionado = st.selectbox(
                 "Ano",
-                options=list(range(2020, 2030)),
-                index=list(range(2020, 2030)).index(
-                    datetime.date.today().year),  # Ano atual como padrão
-                key="ano_calendario"
+                options=anos_disponiveis,
+                index=anos_disponiveis.index(
+                    ano_atual) if ano_atual in anos_disponiveis else 1,
+                key="ano_calendario_widget"
             )
 
-    # Criar o calendário HTML
+    # Criar o calendário
     cal = calendar.monthcalendar(ano_selecionado, mes_selecionado)
     hoje = datetime.date.today()
 
     # Nomes dos dias da semana
-    dias_semana = ["Domingo", "Segunda", "Terça",
-                   "Quarta", "Quinta", "Sexta", "Sábado"]
     dias_semana_abrev = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
 
-    # Gerar HTML dos dias da semana
-    dias_semana_html = ""
-    weekday_template = get_weekday_html()
-    for dia_abrev in dias_semana_abrev:
-        dias_semana_html += weekday_template.format(dia=dia_abrev)
+    # Gerar calendário simples (removido HTML templates temporariamente)
+    # Templates removidos para debug
+    # weekday_template = get_weekday_html()
+    # day_template = get_calendar_day_html()
 
-    # Gerar HTML dos dias do calendário
-    dias_calendario_html = ""
-    day_template = get_calendar_day_html()
+    # Código de geração HTML do calendário removido temporariamente para debug
+    # for semana in cal:
+    #     for dia in semana:
+    #         if dia == 0:
+    #             dias_calendario_html += day_template.format(
+    #                 classes="calendar-day other-month", dia="")
+    #         else:
+    #             data_atual = date(ano_selecionado, mes_selecionado, dia)
+    #             classes = "calendar-day"
+    #
+    #             if data_atual == hoje:
+    #                 classes += " today"
+    #
+    #             dias_calendario_html += day_template.format(
+    #                 classes=classes, dia=dia)
 
-    for semana in cal:
-        for dia in semana:
-            if dia == 0:
-                dias_calendario_html += day_template.format(
-                    classes="calendar-day other-month", dia="")
+    # Mostrar informações do calendário de forma elegante
+    st.markdown(f"### 📅 {meses[mes_selecionado-1]} de {ano_selecionado}")
+
+    # Criar uma visualização mais elegante do calendário
+    dias_semana_completos = ["Domingo", "Segunda",
+                             "Terça", "Quarta", "Quinta", "Sexta", "Sábado"]
+    dias_semana_abrev = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
+
+    # Cabeçalho dos dias da semana com cores
+    col_headers = st.columns(7)
+    for i, dia_semana in enumerate(dias_semana_abrev):
+        with col_headers[i]:
+            if i == 0 or i == 6:  # Domingo ou Sábado
+                st.markdown(
+                    f"**<span style='color: #FF6B6B;'>{dia_semana}</span>**", unsafe_allow_html=True)
             else:
-                data_atual = date(ano_selecionado, mes_selecionado, dia)
-                classes = "calendar-day"
+                st.markdown(f"**{dia_semana}**")
 
-                if data_atual == hoje:
-                    classes += " today"
+    # Exibir o calendário em grid
+    for semana in cal:
+        cols_semana = st.columns(7)
+        for i, dia in enumerate(semana):
+            with cols_semana[i]:
+                if dia == 0:
+                    st.markdown("<div style='height: 40px;'></div>",
+                                unsafe_allow_html=True)
+                else:
+                    data_atual = date(ano_selecionado, mes_selecionado, dia)
 
-                dias_calendario_html += day_template.format(
-                    classes=classes, dia=dia)
-
-    # Usar template principal para gerar o HTML completo
-    calendar_html = get_calendar_html_template().format(
-        mes_nome=meses[mes_selecionado-1],
-        ano=ano_selecionado,
-        dias_semana_html=dias_semana_html,
-        dias_calendario_html=dias_calendario_html
-    )
-
-    st.markdown(calendar_html, unsafe_allow_html=True)
+                    # Destacar o dia de hoje
+                    if data_atual == hoje:
+                        st.markdown(f"""
+                        <div style='
+                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                            color: white;
+                            text-align: center;
+                            padding: 8px;
+                            border-radius: 8px;
+                            font-weight: bold;
+                            margin: 2px;
+                        '>{dia}</div>
+                        """, unsafe_allow_html=True)
+                    # Destacar fins de semana
+                    elif i == 0 or i == 6:  # Domingo ou Sábado
+                        st.markdown(f"""
+                        <div style='
+                            background-color: #FFF5F5;
+                            color: #FF6B6B;
+                            text-align: center;
+                            padding: 8px;
+                            border-radius: 8px;
+                            margin: 2px;
+                            border: 1px solid #FFE5E5;
+                        '>{dia}</div>
+                        """, unsafe_allow_html=True)
+                    else:
+                        st.markdown(f"""
+                        <div style='
+                            background-color: #F8F9FA;
+                            text-align: center;
+                            padding: 8px;
+                            border-radius: 8px;
+                            margin: 2px;
+                            border: 1px solid #E9ECEF;
+                        '>{dia}</div>
+                        """, unsafe_allow_html=True)
 
     # Retornar a data selecionada (para integração com o resto do código)
     return date(ano_selecionado, mes_selecionado, 1)
@@ -305,43 +357,68 @@ def main_metas(df_stats):
 
 
 # Configuração da página
-st.set_page_config(page_title="Finanças",
-                   page_icon=":moneybag:", layout="wide")
+st.set_page_config(
+    page_title="Finanças Pessoais",
+    page_icon="💰",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
 
-st.markdown("""
-# 💰 Finanças Pessoais
+# Cabeçalho simples
+st.title("💰 Finanças Pessoais")
+st.subheader("Seu painel de controle financeiro inteligente")
 
-Bem-vindo ao seu painel de controle financeiro!  
-Aqui você pode:
+# Seção de boas-vindas usando componentes nativos do Streamlit
+st.markdown("### ✨ Bem-vindo ao seu painel de controle financeiro!")
 
-- 📈 Monitorar receitas
-- 📉 Controlar despesas
-- 🏦 Gerenciar investimentos
-- 📅 Visualizar datas importantes
+col1, col2, col3, col4 = st.columns(4)
+with col1:
+    st.info("📈 **Monitorar receitas**")
+with col2:
+    st.info("📉 **Controlar despesas**")
+with col3:
+    st.info("🏦 **Gerenciar investimentos**")
+with col4:
+    st.info("📅 **Visualizar datas importantes**")
 
-Organize sua vida financeira de forma simples e eficiente.
-""")
-
-# Widget de calendário melhorado
+st.markdown("*Organize sua vida financeira de forma simples e eficiente.*")
+st.markdown("---")  # Widget de calendário melhorado
 with st.expander("📅 Calendário Financeiro", expanded=False):
-    st.markdown("### Visualize datas importantes para suas finanças")
+    st.markdown("### 🗓️ Visualize datas importantes para suas finanças")
     data_calendario = create_calendar_widget()
 
     # Informações adicionais sobre a data selecionada
     col1, col2, col3 = st.columns(3)
+
+    # Lista de meses em português para exibição
+    meses_pt = [
+        "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+        "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+    ]
+
     with col1:
-        st.info(f"📅 **Mês selecionado:** {data_calendario.strftime('%B/%Y')}")
+        mes_nome = meses_pt[data_calendario.month - 1]
+        st.info(f"📅 **Mês selecionado:** {mes_nome}/{data_calendario.year}")
+
     with col2:
         dias_no_mes = calendar.monthrange(
             data_calendario.year, data_calendario.month)[1]
-        st.info(f"📊 **Dias no mês:** {dias_no_mes}")
+        st.info(f"📊 **Dias no mês:** {dias_no_mes} dias")
+
     with col3:
         dias_uteis = len([d for d in range(1, dias_no_mes + 1)
                          if date(data_calendario.year, data_calendario.month, d).weekday() < 5])
-        st.info(f"💼 **Dias úteis:** {dias_uteis}")
+        st.info(f"💼 **Dias úteis:** {dias_uteis} dias")
 
-# Upload de arquivo
-file_upload = st.file_uploader("📥 Carregar arquivo CSV", type=["csv"])
+# Upload de arquivo com design elegante
+st.markdown("### 📂 Carregamento de Dados")
+st.info("💡 **Como usar:** Carregue seu arquivo CSV com dados financeiros para começar a análise. O arquivo deve conter as colunas: Data, Valor e Instituição.")
+
+file_upload = st.file_uploader(
+    "📥 Selecione seu arquivo CSV",
+    type=["csv"],
+    help="Carregue um arquivo CSV com suas informações financeiras"
+)
 if file_upload:
 
     df = pd.read_csv(file_upload)
@@ -360,31 +437,37 @@ if file_upload:
                 st.error(f"Erro ao converter datas: {e}")
                 st.stop()
 
-    exp1 = st.expander("📊 Visualizar Dados")
+    exp1 = st.expander("📊 Visualizar Dados", expanded=False)
     df["Valor"] = df["Valor"].astype(float)
     columns_fmt = {"Valor": st.column_config.NumberColumn(
         "Valor", format="R$ %.2f")}
-    exp1.dataframe(df, hide_index=True, column_config=columns_fmt)
+    exp1.markdown("### 💾 Dados Carregados")
+    exp1.dataframe(df, hide_index=True, column_config=columns_fmt,
+                   use_container_width=True)
 
-    exp2 = st.expander("📊 Análise por Instituição")
+    exp2 = st.expander("📊 Análise por Instituição", expanded=False)
     df_instituicao = df.pivot_table(
         index="Data", columns="Instituição", values="Valor")
 
     tab_data, tab_history, tb_share = exp2.tabs(
-        ["📊 Dados", "📜 Histórico", "📈 Participação"])
+        ["📊 Dados por Instituição", "📜 Histórico de Evolução", "📈 Participação por Data"])
 
     with tab_data:
-        st.dataframe(df_instituicao)
+        st.markdown("### 🏦 Dados Organizados por Instituição")
+        st.dataframe(df_instituicao, use_container_width=True)
 
     with tab_history:
+        st.markdown("### 📈 Evolução Temporal por Instituição")
         st.line_chart(df_instituicao, use_container_width=True)
 
     with tb_share:
+        st.markdown("### 📊 Participação por Data Selecionada")
         date = st.selectbox("📅 Selecione uma data",
-                            options=sorted(df_instituicao.index))
+                            options=sorted(df_instituicao.index),
+                            key="data_participacao")
         st.bar_chart(df_instituicao.loc[date])
 
-    exp3 = st.expander("📊 Estatísticas Gerais")
+    exp3 = st.expander("📊 Estatísticas Gerais", expanded=False)
 
     df_stats = calc_general_stats(df)
 
@@ -427,7 +510,7 @@ if file_upload:
         ]
         st.line_chart(data=df_stats[rel_cols])
 
-    with st.expander("📊 Metas"):
+    with st.expander("📊 Metas Financeiras", expanded=False):
         # Estrutura de tabs para organizar a seção de metas
         tab_main, tab_data_meta, tab_graph = st.tabs(
             ["📋 Configuração", "📊 Dados", "📈 Gráficos"])
@@ -465,19 +548,29 @@ if file_upload:
 
         # Informações do dataset
     with st.expander("ℹ️ Informações do Dataset"):
+        st.markdown("### 📊 Resumo dos Dados Carregados")
+
         col1, col2, col3 = st.columns(3)
         with col1:
-            st.metric("Total de Registros", len(df))
+            st.metric("📝 Total de Registros", f"{len(df):,}")
         with col2:
-            st.metric("Períodos", len(df['Data'].unique()))
+            st.metric("📅 Períodos Analisados", len(df['Data'].unique()))
         with col3:
-            st.metric("Instituições", len(df['Instituição'].unique()))
+            st.metric("🏦 Instituições", len(df['Instituição'].unique()))
 
-        st.write(
-            f"**Período analisado**: {min(df['Data']).strftime('%d/%m/%Y')} até {max(df['Data']).strftime('%d/%m/%Y')}")
-        st.write(
-            f"**Instituições**: {', '.join(df['Instituição'].unique().tolist())}")
+        # Informações detalhadas
+        col_period, col_inst = st.columns(2)
+        with col_period:
+            st.info(
+                f"📈 **Período Analisado:** De {min(df['Data']).strftime('%d/%m/%Y')} até {max(df['Data']).strftime('%d/%m/%Y')}")
 
-# Rodapé com informações adicionais
+        with col_inst:
+            instituicoes_list = ', '.join(df['Instituição'].unique().tolist())
+            st.info(f"🏢 **Instituições:** {instituicoes_list}")
+
+# Rodapé simples
 st.markdown("---")
-st.markdown(get_footer_html(), unsafe_allow_html=True)
+st.markdown(
+    "📱 **Dica:** Use o calendário para visualizar informações específicas de cada mês!")
+st.markdown(
+    "💡 Para melhores resultados, mantenha seus dados financeiros sempre atualizados.")
