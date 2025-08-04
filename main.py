@@ -116,7 +116,8 @@ def create_calendar_widget():
                     st.markdown("<div style='height: 40px;'></div>",
                                 unsafe_allow_html=True)
                 else:
-                    data_atual = date(ano_selecionado, mes_selecionado, dia)
+                    data_atual = datetime.date(
+                        ano_selecionado, mes_selecionado, dia)
 
                     # Destacar o dia de hoje
                     if data_atual == hoje:
@@ -157,7 +158,7 @@ def create_calendar_widget():
                         """, unsafe_allow_html=True)
 
     # Retornar a data selecionada (para integração com o resto do código)
-    return date(ano_selecionado, mes_selecionado, 1)
+    return datetime.date(ano_selecionado, mes_selecionado, 1)
 
 
 def calc_general_stats(df):
@@ -220,32 +221,152 @@ def main_metas(df_stats):
     with st.container(border=True):
         st.markdown("#### 📅 Dados de Início da Meta")
 
-        # Usar date_input com tratamento inteligente de datas
+        # Usar selectboxes personalizados em português para melhor controle
         datas_disponiveis = sorted(df_stats.index)
 
-        data_inicio_meta = st.date_input(
-            "Data de Início da Meta",
-            value=datas_disponiveis[0],  # Primeira data disponível como padrão
-            min_value=datas_disponiveis[0],  # Primeira data como mínima
-            max_value=datas_disponiveis[-1],  # Última data como máxima
-            help="Selecione uma data para definir o início da sua meta financeira"
-        )
+        # Extrair anos e meses únicos das datas disponíveis
+        anos_unicos = sorted(list(set([d.year for d in datas_disponiveis])))
 
-        # Encontrar a data mais próxima disponível
-        if data_inicio_meta in datas_disponiveis:
-            valor_inicio = df_stats.loc[data_inicio_meta, "Valor"]
-        else:
-            # Encontrar a data mais próxima (anterior ou igual)
-            datas_anteriores = [
-                d for d in datas_disponiveis if d <= data_inicio_meta]
-            if datas_anteriores:
-                data_proxima = max(datas_anteriores)
+        col_ano_meta, col_mes_meta, col_dia_meta = st.columns(3)
+
+        meses_pt_meta = [
+            "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+            "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+        ]
+
+        with col_ano_meta:
+            ano_meta_selecionado = st.selectbox(
+                "Ano da Meta",
+                options=anos_unicos,
+                index=0,
+                key="ano_meta_inicio"
+            )
+
+        # Filtrar meses disponíveis para o ano selecionado
+        meses_disponiveis_ano = sorted(list(
+            set([d.month for d in datas_disponiveis if d.year == ano_meta_selecionado])))
+
+        with col_mes_meta:
+            mes_meta_selecionado = st.selectbox(
+                "Mês da Meta",
+                options=meses_disponiveis_ano,
+                format_func=lambda x: meses_pt_meta[x-1],
+                index=0,
+                key="mes_meta_inicio"
+            )
+
+        # Filtrar dias disponíveis para o ano/mês selecionado
+        dias_disponiveis_mes = sorted(list(
+            set([d.day for d in datas_disponiveis if d.year == ano_meta_selecionado and d.month == mes_meta_selecionado])))
+
+        with col_dia_meta:
+            if dias_disponiveis_mes:
+                dia_meta_selecionado = st.selectbox(
+                    "Dia da Meta",
+                    options=dias_disponiveis_mes,
+                    index=len(dias_disponiveis_mes) -
+                    1,  # Último dia disponível
+                    # Chave única
+                    key=f"dia_meta_inicio_{ano_meta_selecionado}_{mes_meta_selecionado}"
+                )
             else:
-                data_proxima = min(datas_disponiveis)
+                st.warning("Nenhum dia disponível")
+                dia_meta_selecionado = 1
 
-            valor_inicio = df_stats.loc[data_proxima, "Valor"]
-            st.info(
-                f"📅 Usando dados de {data_proxima.strftime('%d/%m/%Y')} (data mais próxima disponível)")
+        # Construir a data selecionada
+        try:
+            data_inicio_meta = datetime.date(
+                ano_meta_selecionado, mes_meta_selecionado, dia_meta_selecionado)
+
+            # Verificar se a data existe nos dados
+            if data_inicio_meta in datas_disponiveis:
+                valor_inicio = df_stats.loc[data_inicio_meta, "Valor"]
+            else:
+                # Encontrar a data mais próxima
+                datas_do_mes = [d for d in datas_disponiveis if d.year ==
+                                ano_meta_selecionado and d.month == mes_meta_selecionado]
+                if datas_do_mes:
+                    data_inicio_meta = max(datas_do_mes)  # Última data do mês
+                    valor_inicio = df_stats.loc[data_inicio_meta, "Valor"]
+                else:
+                    # Fallback para primeira data disponível
+                    data_inicio_meta = datas_disponiveis[0]
+                    valor_inicio = df_stats.loc[data_inicio_meta, "Valor"]
+        except ValueError:
+            # Data inválida, usar primeira data disponível
+            data_inicio_meta = datas_disponiveis[0]
+            valor_inicio = df_stats.loc[data_inicio_meta, "Valor"]
+
+        # Exibir mini calendário visual para referência
+        st.markdown("**📅 Calendário de Referência:**")
+
+        # Criar um calendário visual simples para o mês selecionado
+        cal = calendar.monthcalendar(
+            ano_meta_selecionado, mes_meta_selecionado)
+
+        # Cabeçalho dos dias
+        dias_semana = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
+        col_cal = st.columns(7)
+        for i, dia_sem in enumerate(dias_semana):
+            with col_cal[i]:
+                if i == 0 or i == 6:  # Domingo ou Sábado
+                    st.markdown(
+                        f"**<span style='color: #FF6B6B; font-size: 12px;'>{dia_sem}</span>**", unsafe_allow_html=True)
+                else:
+                    st.markdown(
+                        f"**<span style='font-size: 12px;'>{dia_sem}</span>**", unsafe_allow_html=True)
+
+        # Dias do calendário
+        for semana in cal:
+            col_sem = st.columns(7)
+            for i, dia in enumerate(semana):
+                with col_sem[i]:
+                    if dia == 0:
+                        st.markdown("")
+                    else:
+                        # Verificar se este dia tem dados disponíveis
+                        data_check = datetime.date(ano_meta_selecionado,
+                                                   mes_meta_selecionado, dia)
+
+                        if data_check in datas_disponiveis:
+                            if dia == dia_meta_selecionado:
+                                # Dia selecionado
+                                st.markdown(f"""
+                                <div style='
+                                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                    color: white;
+                                    text-align: center;
+                                    padding: 4px;
+                                    border-radius: 4px;
+                                    font-size: 12px;
+                                    font-weight: bold;
+                                '>{dia}</div>
+                                """, unsafe_allow_html=True)
+                            else:
+                                # Dia com dados disponíveis
+                                st.markdown(f"""
+                                <div style='
+                                    background-color: #E3F2FD;
+                                    color: #1976D2;
+                                    text-align: center;
+                                    padding: 4px;
+                                    border-radius: 4px;
+                                    font-size: 12px;
+                                    border: 1px solid #BBDEFB;
+                                '>{dia}</div>
+                                """, unsafe_allow_html=True)
+                        else:
+                            # Dia sem dados
+                            st.markdown(f"""
+                            <div style='
+                                background-color: #F5F5F5;
+                                color: #9E9E9E;
+                                text-align: center;
+                                padding: 4px;
+                                border-radius: 4px;
+                                font-size: 12px;
+                            '>{dia}</div>
+                            """, unsafe_allow_html=True)
 
         st.markdown(
             f"**Patrimônio no Início da Meta:** R$ {valor_inicio:,.2f}")
@@ -407,7 +528,7 @@ with st.expander("📅 Calendário Financeiro", expanded=False):
 
     with col3:
         dias_uteis = len([d for d in range(1, dias_no_mes + 1)
-                         if date(data_calendario.year, data_calendario.month, d).weekday() < 5])
+                         if datetime.date(data_calendario.year, data_calendario.month, d).weekday() < 5])
         st.info(f"💼 **Dias úteis:** {dias_uteis} dias")
 
 # Upload de arquivo com design elegante
