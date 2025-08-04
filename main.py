@@ -44,23 +44,23 @@ except ImportError:
 def render_html_table(df, container=None):
     """
     Renderiza uma tabela HTML customizada sem dependência do PyArrow.
-    
+
     Esta função foi criada para resolver problemas de compatibilidade com PyArrow
     no Streamlit Cloud, substituindo st.dataframe() e st.table() por renderização
     HTML pura com estilização CSS incorporada.
-    
+
     Args:
         df (pd.DataFrame): DataFrame contendo os dados a serem exibidos na tabela
         container (streamlit.container, optional): Container específico onde renderizar
                                                  a tabela. Se None, usa st.markdown diretamente.
-    
+
     Returns:
         None: A função renderiza a tabela diretamente na interface Streamlit
-        
+
     Exemplo:
         >>> df = pd.DataFrame({'Nome': ['João', 'Maria'], 'Idade': [25, 30]})
         >>> render_html_table(df)
-        
+
     Nota:
         - Substitui st.dataframe() para evitar erros de PyArrow DLL
         - Inclui CSS responsivo para adaptação a diferentes tamanhos de tela
@@ -93,28 +93,28 @@ def render_html_table(df, container=None):
 def render_line_chart(df, title="Gráfico de Linhas", container=None):
     """
     Renderiza um gráfico de linhas interativo usando Plotly.
-    
+
     Esta função substitui st.line_chart() para evitar problemas de compatibilidade
     com NumPy/PyArrow no Streamlit Cloud, oferecendo gráficos mais interativos
     e customizáveis com Plotly Express.
-    
+
     Args:
         df (pd.DataFrame): DataFrame contendo os dados para o gráfico.
                           Deve ter colunas numéricas para o eixo Y.
         title (str, optional): Título do gráfico. Padrão: "Gráfico de Linhas"
         container (streamlit.container, optional): Container específico onde renderizar
                                                  o gráfico. Se None, usa st.plotly_chart diretamente.
-    
+
     Returns:
         None: A função renderiza o gráfico diretamente na interface Streamlit
-        
+
     Raises:
         Exception: Captura e exibe erros de renderização com mensagens amigáveis
-        
+
     Exemplo:
         >>> df = pd.DataFrame({'x': [1, 2, 3], 'y': [10, 20, 15]})
         >>> render_line_chart(df, "Evolução Temporal")
-        
+
     Nota:
         - Verifica disponibilidade do Plotly antes de renderizar
         - Inclui configurações padrão otimizadas (altura 400px, legendas, etc.)
@@ -152,11 +152,11 @@ def render_line_chart(df, title="Gráfico de Linhas", container=None):
 def render_bar_chart(data, title="Gráfico de Barras", container=None):
     """
     Renderiza um gráfico de barras interativo usando Plotly.
-    
+
     Esta função substitui st.bar_chart() para evitar problemas de compatibilidade
     com NumPy/PyArrow no Streamlit Cloud, oferecendo gráficos mais interativos
     e flexíveis com Plotly Express.
-    
+
     Args:
         data (pd.DataFrame | pd.Series): Dados para o gráfico de barras.
                                        - Se Series: usa index como X e values como Y
@@ -164,13 +164,13 @@ def render_bar_chart(data, title="Gráfico de Barras", container=None):
         title (str, optional): Título do gráfico. Padrão: "Gráfico de Barras"
         container (streamlit.container, optional): Container específico onde renderizar
                                                  o gráfico. Se None, usa st.plotly_chart diretamente.
-    
+
     Returns:
         None: A função renderiza o gráfico diretamente na interface Streamlit
-        
+
     Raises:
         Exception: Captura e exibe erros de renderização com mensagens amigáveis
-        
+
     Exemplo:
         >>> # Com pandas Series
         >>> series = pd.Series([10, 20, 15], index=['A', 'B', 'C'])
@@ -179,7 +179,7 @@ def render_bar_chart(data, title="Gráfico de Barras", container=None):
         >>> # Com DataFrame
         >>> df = pd.DataFrame({'categoria': ['X', 'Y'], 'valor': [100, 200]})
         >>> render_bar_chart(df, "Análise Comparativa")
-        
+
     Nota:
         - Verifica disponibilidade do Plotly antes de renderizar
         - Suporta tanto pandas Series quanto DataFrame
@@ -224,27 +224,27 @@ def render_bar_chart(data, title="Gráfico de Barras", container=None):
 def get_selic():
     """
     Obtém dados históricos da taxa SELIC do Banco Central do Brasil.
-    
+
     Esta função faz uma requisição à API oficial do BCB para obter o histórico
     completo das taxas SELIC, incluindo datas de vigência e valores. Os dados
     são cached por 1 dia para otimizar performance e reduzir chamadas à API.
-    
+
     Returns:
         pd.DataFrame: DataFrame contendo:
             - DataInicioVigencia (date): Data de início da vigência da taxa
             - DataFimVigencia (date): Data de fim da vigência da taxa  
             - MetaSelic (float): Valor da meta SELIC em percentual
             - Outras colunas fornecidas pela API do BCB
-            
+
     Raises:
         requests.RequestException: Em caso de erro na requisição HTTP
         KeyError: Se a estrutura da resposta da API for alterada
-        
+
     Exemplo:
         >>> selic_df = get_selic()
         >>> print(selic_df.columns)
         ['DataInicioVigencia', 'DataFimVigencia', 'MetaSelic', ...]
-        
+
     Nota:
         - Cache configurado para 1 dia (ttl="1day") via @st.cache_data
         - Converte automaticamente strings de data para objetos date
@@ -266,15 +266,15 @@ def get_selic():
 def create_calendar_widget():
     """
     Cria um widget de calendário interativo e visual para seleção de datas.
-    
+
     Esta função implementa um calendário customizado usando componentes nativos
     do Streamlit, oferecendo uma interface mais intuitiva que os seletores de
     data padrão. Inclui visualização mensal completa com destaque para dias
     especiais e cálculo automático de informações úteis.
-    
+
     Returns:
         datetime.date: Data do primeiro dia do mês selecionado
-        
+
     Features:
         - Seletores de mês e ano em português
         - Visualização em grid do calendário mensal
@@ -282,11 +282,11 @@ def create_calendar_widget():
         - Diferenciação de fins de semana com cores
         - Informações complementares (dias úteis, total de dias)
         - Interface responsiva com colunas adaptáveis
-        
+
     Exemplo:
         >>> data_selecionada = create_calendar_widget()
         >>> print(f"Mês selecionado: {data_selecionada.strftime('%B/%Y')}")
-        
+
     Nota:
         - Usa st.columns() para layout responsivo
         - Implementa CSS inline para estilização
@@ -430,16 +430,16 @@ def create_calendar_widget():
 def calc_general_stats(df):
     """
     Calcula estatísticas financeiras avançadas e métricas de performance.
-    
+
     Esta função processa dados financeiros temporais para gerar indicadores
     estatísticos abrangentes, incluindo médias móveis, diferenças mensais,
     evolução temporal e métricas de crescimento relativo e absoluto.
-    
+
     Args:
         df (pd.DataFrame): DataFrame com colunas 'Data' e 'Valor'
                           - 'Data': Datas das observações (será usada como índice)
                           - 'Valor': Valores financeiros (serão agregados por data)
-    
+
     Returns:
         pd.DataFrame: DataFrame com estatísticas calculadas, contendo:
             - Valor: Valor agregado por data
@@ -448,14 +448,14 @@ def calc_general_stats(df):
             - Diferença Mensal Rel: Variação percentual entre períodos  
             - Evolução 6M/12M/24M Diferença Mensal: Tendência das diferenças
             - Evolução 6M/12M/24M Relativa: Evolução percentual das variações
-            
+
     Processo de cálculo:
         1. Ordena dados cronologicamente e agrega por data
         2. Calcula diferenças absolutas entre períodos consecutivos
         3. Computa médias móveis de 6, 12 e 24 meses
         4. Calcula variações percentuais (relativas)
         5. Determina tendências de evolução temporal
-        
+
     Exemplo:
         >>> df = pd.DataFrame({
         ...     'Data': ['2024-01-01', '2024-02-01'], 
@@ -463,7 +463,7 @@ def calc_general_stats(df):
         ... })
         >>> stats = calc_general_stats(df)
         >>> print(stats['Diferença Mensal Absoluta'].iloc[-1])  # 100.0
-        
+
     Nota:
         - Remove coluna auxiliar 'lag_1' no retorno
         - Usa min_periods=1 nas rolling windows para incluir períodos iniciais
@@ -506,16 +506,16 @@ def calc_general_stats(df):
 def main_metas(df_stats):
     """
     Interface principal para configuração e cálculo de metas financeiras.
-    
+
     Esta função implementa um sistema completo de planejamento financeiro,
     permitindo ao usuário configurar custos, receitas e objetivos, calculando
     automaticamente projeções com base na taxa SELIC oficial do Banco Central.
-    
+
     Args:
         df_stats (pd.DataFrame): DataFrame com estatísticas financeiras gerado
                                 por calc_general_stats(), contendo índice de datas
                                 e coluna 'Valor' com patrimônio por período.
-    
+
     Returns:
         tuple: Tupla contendo:
             - data_inicio_meta (datetime.date): Data de início escolhida para a meta
@@ -523,7 +523,7 @@ def main_metas(df_stats):
             - meta_estimada (float): Valor da meta financeira definida
             - patrimonio_final (float): Patrimônio total esperado ao atingir a meta
             - meses (pd.DataFrame): Cronograma mensal com projeções e atingimento
-    
+
     Interface Components:
         - Campos de entrada para custos fixos e salários
         - Seletor visual de data de início da meta
@@ -531,7 +531,7 @@ def main_metas(df_stats):
         - Integração automática com API SELIC
         - Tabela de acompanhamento mensal
         - Cálculos de rendimento e projeções
-        
+
     Recursos principais:
         - Configuração flexível de parâmetros financeiros
         - Integração com taxa SELIC oficial (API BCB)
@@ -539,12 +539,12 @@ def main_metas(df_stats):
         - Projeções mensais e anuais
         - Visualização de progresso em tempo real
         - Tratamento de erros e fallbacks
-        
+
     Exemplo de uso:
         >>> df_stats = calc_general_stats(df_financeiro)
         >>> inicio, valor, meta, final, cronograma = main_metas(df_stats)
         >>> print(f"Meta de R$ {meta:,.2f} iniciando em {inicio}")
-        
+
     Nota:
         - Usa selectboxes em português para melhor UX
         - Implementa validação de datas disponíveis
@@ -897,7 +897,7 @@ st.markdown("---")  # Separador visual
 # Expander para o calendário - permite visualização opcional
 with st.expander("📅 Calendário Financeiro", expanded=False):
     st.markdown("### 🗓️ Visualize datas importantes para suas finanças")
-    
+
     # Chama função para criar widget de calendário customizado
     data_calendario = create_calendar_widget()
 
@@ -945,11 +945,11 @@ file_upload = st.file_uploader(
 
 # Processamento condicional - só executa se arquivo foi carregado
 if file_upload:
-    
+
     # =============================================================================
     # PROCESSAMENTO E VALIDAÇÃO DOS DADOS CARREGADOS
     # =============================================================================
-    
+
     # Leitura do arquivo CSV
     df = pd.read_csv(file_upload)
 
@@ -958,7 +958,7 @@ if file_upload:
     try:
         df["Data"] = pd.to_datetime(df["Data"], format="%d/%m/%Y").dt.date
     except:
-        # Tentativa 2: Formato ISO YYYY-MM-DD  
+        # Tentativa 2: Formato ISO YYYY-MM-DD
         try:
             df["Data"] = pd.to_datetime(df["Data"], format="%Y-%m-%d").dt.date
         except:
@@ -974,10 +974,10 @@ if file_upload:
     # =============================================================================
     # SEÇÃO 1: VISUALIZAÇÃO DOS DADOS BRUTOS
     # =============================================================================
-    
+
     # Expander para visualização opcional dos dados carregados
     exp1 = st.expander("📊 Visualizar Dados", expanded=False)
-    
+
     # Conversão da coluna Valor para float (garantir tipo numérico)
     df["Valor"] = df["Valor"].astype(float)
 
@@ -992,7 +992,7 @@ if file_upload:
     # =============================================================================
     # SEÇÃO 2: ANÁLISE POR INSTITUIÇÃO FINANCEIRA
     # =============================================================================
-    
+
     exp2 = st.expander("📊 Análise por Instituição", expanded=False)
     df_instituicao = df.pivot_table(
         index="Data", columns="Instituição", values="Valor")
@@ -1123,28 +1123,28 @@ if file_upload:
         # Esta seção apresenta um resumo estatístico completo dos dados carregados,
         # incluindo informações sobre volume de dados, períodos analisados e instituições.
         # Permite ao usuário ter uma visão geral da qualidade e abrangência dos dados.
-        
+
     with st.expander("ℹ️ Informações do Dataset"):
         st.markdown("### 📊 Resumo dos Dados Carregados")
 
         # Métricas principais do dataset em colunas organizadas
         col1, col2, col3 = st.columns(3)
-        
+
         # Primeira coluna: Total de registros financeiros processados
         with col1:
             st.metric("📝 Total de Registros", f"{len(df):,}")
-        
+
         # Segunda coluna: Quantidade de períodos únicos (meses) analisados
         with col2:
             st.metric("📅 Períodos Analisados", len(df['Data'].unique()))
-        
+
         # Terceira coluna: Número de instituições financeiras distintas
         with col3:
             st.metric("🏦 Instituições", len(df['Instituição'].unique()))
 
         # Informações detalhadas sobre período e instituições
         col_period, col_inst = st.columns(2)
-        
+
         # Coluna esquerda: Intervalo de datas completo do dataset
         with col_period:
             st.info(
