@@ -14,7 +14,7 @@ Principais funcionalidades:
 - Renderização otimizada sem dependências PyArrow
 
 Autor: Elbia
-Versão: 3.0.0
+Versão: 3.0.1 - Rebuild forçado para Python 3.13
 Data: Agosto 2025
 GitHub: https://github.com/Elbiabuglio/Streamlit
 Deploy: https://finance-control-esb.streamlit.app/
@@ -29,203 +29,45 @@ from datetime import date, timedelta
 
 # Imports com tratamento de erro para Streamlit Cloud
 PLOTLY_AVAILABLE = False
-try:
-    import plotly.express as px
-    import plotly.graph_objects as go
-    PLOTLY_AVAILABLE = True
-except ImportError:
-    pass  # Será tratado mais tarde na interface
-except Exception:
-    pass  # Será tratado mais tarde na interface
+# Plotly temporariamente desabilitado para debug
+# try:
+#     import plotly.express as px
+#     import plotly.graph_objects as go
+#     PLOTLY_AVAILABLE = True
+# except ImportError:
+#     pass  # Será tratado mais tarde na interface
+# except Exception:
+#     pass  # Será tratado mais tarde na interface
 
-# Imports CSS/HTML temporariamente removidos para debug
-# from styles.calendar_css import get_calendar_css
-# from styles.main_css import get_main_css, get_custom_header
+# Imports CSS/HTML com tratamento de erro
+try:
+    from styles.calendar_css import get_calendar_css
+    from styles.main_css import get_main_css, get_custom_header
+    CSS_AVAILABLE = True
+except ImportError:
+    CSS_AVAILABLE = False
+except Exception:
+    CSS_AVAILABLE = False
 
 
 def render_html_table(df, container=None):
     """
-    Renderiza uma tabela HTML customizada sem dependência do PyArrow.
-
-    Esta função foi criada para resolver problemas de compatibilidade com PyArrow
-    no Streamlit Cloud, substituindo st.dataframe() e st.table() por renderização
-    HTML pura com estilização CSS incorporada.
-
-    Args:
-        df (pd.DataFrame): DataFrame contendo os dados a serem exibidos na tabela
-        container (streamlit.container, optional): Container específico onde renderizar
-                                                 a tabela. Se None, usa st.markdown diretamente.
-
-    Returns:
-        None: A função renderiza a tabela diretamente na interface Streamlit
-
-    Exemplo:
-        >>> df = pd.DataFrame({'Nome': ['João', 'Maria'], 'Idade': [25, 30]})
-        >>> render_html_table(df)
-
-    Nota:
-        - Substitui st.dataframe() para evitar erros de PyArrow DLL
-        - Inclui CSS responsivo para adaptação a diferentes tamanhos de tela
-        - Trata valores nulos automaticamente, exibindo "-"
+    Renderiza uma tabela usando st.dataframe nativo para maior estabilidade.
     """
-    html_table = "<div style='overflow-x: auto;'><table style='width: 100%; border-collapse: collapse; font-family: Arial, sans-serif;'>"
-    html_table += "<thead><tr style='background-color: #f0f2f6; border-bottom: 2px solid #ddd;'>"
-
-    # Cabeçalhos
-    for col in df.columns:
-        html_table += f"<th style='padding: 12px; text-align: left; font-weight: bold;'>{col}</th>"
-    html_table += "</tr></thead><tbody>"
-
-    # Dados
-    for idx, row in df.iterrows():
-        html_table += "<tr style='border-bottom: 1px solid #eee;'>"
-        for col in df.columns:
-            value = row[col] if pd.notnull(row[col]) else "-"
-            html_table += f"<td style='padding: 10px; text-align: left;'>{value}</td>"
-        html_table += "</tr>"
-
-    html_table += "</tbody></table></div>"
-
     if container:
-        container.markdown(html_table, unsafe_allow_html=True)
+        container.dataframe(df, use_container_width=True)
     else:
-        st.markdown(html_table, unsafe_allow_html=True)
+        st.dataframe(df, use_container_width=True)
 
 
-def render_line_chart(df, title="Gráfico de Linhas", container=None):
-    """
-    Renderiza um gráfico de linhas interativo usando Plotly.
-
-    Esta função substitui st.line_chart() para evitar problemas de compatibilidade
-    com NumPy/PyArrow no Streamlit Cloud, oferecendo gráficos mais interativos
-    e customizáveis com Plotly Express.
-
-    Args:
-        df (pd.DataFrame): DataFrame contendo os dados para o gráfico.
-                          Deve ter colunas numéricas para o eixo Y.
-        title (str, optional): Título do gráfico. Padrão: "Gráfico de Linhas"
-        container (streamlit.container, optional): Container específico onde renderizar
-                                                 o gráfico. Se None, usa st.plotly_chart diretamente.
-
-    Returns:
-        None: A função renderiza o gráfico diretamente na interface Streamlit
-
-    Raises:
-        Exception: Captura e exibe erros de renderização com mensagens amigáveis
-
-    Exemplo:
-        >>> df = pd.DataFrame({'x': [1, 2, 3], 'y': [10, 20, 15]})
-        >>> render_line_chart(df, "Evolução Temporal")
-
-    Nota:
-        - Verifica disponibilidade do Plotly antes de renderizar
-        - Inclui configurações padrão otimizadas (altura 400px, legendas, etc.)
-        - Tratamento de erros robusto com fallbacks informativos
-    """
-    if not PLOTLY_AVAILABLE:
-        # Fallback para gráfico nativo do Streamlit
-        if container:
-            container.line_chart(df)
-        else:
-            st.line_chart(df)
-        return
-
-    try:
-        fig = px.line(df, title=title)
-        fig.update_layout(
-            showlegend=True,
-            height=400,
-            xaxis_title="Data",
-            yaxis_title="Valor",
-            font=dict(size=12)
-        )
-        if container:
-            container.plotly_chart(fig, use_container_width=True)
-        else:
-            st.plotly_chart(fig, use_container_width=True)
-    except Exception as e:
-        error_msg = f"⚠️ Erro ao renderizar gráfico de linhas: {e}"
-        if container:
-            container.error(error_msg)
-        else:
-            st.error(error_msg)
-
-
-def render_bar_chart(data, title="Gráfico de Barras", container=None):
-    """
-    Renderiza um gráfico de barras interativo usando Plotly.
-
-    Esta função substitui st.bar_chart() para evitar problemas de compatibilidade
-    com NumPy/PyArrow no Streamlit Cloud, oferecendo gráficos mais interativos
-    e flexíveis com Plotly Express.
-
-    Args:
-        data (pd.DataFrame | pd.Series): Dados para o gráfico de barras.
-                                       - Se Series: usa index como X e values como Y
-                                       - Se DataFrame: usa formato padrão do Plotly
-        title (str, optional): Título do gráfico. Padrão: "Gráfico de Barras"
-        container (streamlit.container, optional): Container específico onde renderizar
-                                                 o gráfico. Se None, usa st.plotly_chart diretamente.
-
-    Returns:
-        None: A função renderiza o gráfico diretamente na interface Streamlit
-
-    Raises:
-        Exception: Captura e exibe erros de renderização com mensagens amigáveis
-
-    Exemplo:
-        >>> # Com pandas Series
-        >>> series = pd.Series([10, 20, 15], index=['A', 'B', 'C'])
-        >>> render_bar_chart(series, "Comparação por Categoria")
-        >>> 
-        >>> # Com DataFrame
-        >>> df = pd.DataFrame({'categoria': ['X', 'Y'], 'valor': [100, 200]})
-        >>> render_bar_chart(df, "Análise Comparativa")
-
-    Nota:
-        - Verifica disponibilidade do Plotly antes de renderizar
-        - Suporta tanto pandas Series quanto DataFrame
-        - Configurações otimizadas para visualização financeira
-    """
-    if not PLOTLY_AVAILABLE:
-        # Fallback para gráfico nativo do Streamlit
-        if container:
-            if isinstance(data, pd.Series):
-                container.bar_chart(data)
-            else:
-                container.bar_chart(data)
-        else:
-            if isinstance(data, pd.Series):
-                st.bar_chart(data)
-            else:
-                st.bar_chart(data)
-        return
-
-    try:
-        if isinstance(data, pd.Series):
-            fig = px.bar(x=data.index, y=data.values, title=title)
-        else:
-            fig = px.bar(data, title=title)
-
-        fig.update_layout(
-            showlegend=True,
-            height=400,
-            xaxis_title="Categoria",
-            yaxis_title="Valor",
-            font=dict(size=12)
-        )
-        if container:
-            container.plotly_chart(fig, use_container_width=True)
-        else:
-            st.plotly_chart(fig, use_container_width=True)
-    except Exception as e:
-        error_msg = f"⚠️ Erro ao renderizar gráfico de barras: {e}"
-        if container:
-            container.error(error_msg)
-        else:
-            st.error(error_msg)
-
-# from templates.html_templates import get_calendar_html_template, get_weekday_html, get_calendar_day_html, get_footer_html
+# Imports de templates com tratamento de erro
+try:
+    from templates.html_templates import get_calendar_html_template, get_weekday_html, get_calendar_day_html, get_footer_html
+    TEMPLATES_AVAILABLE = True
+except ImportError:
+    TEMPLATES_AVAILABLE = False
+except Exception:
+    TEMPLATES_AVAILABLE = False
 
 
 @st.cache_data(ttl="1day")
@@ -1020,14 +862,16 @@ if file_upload:
 
     with tab_history:
         st.markdown("### 📈 Evolução Temporal por Instituição")
-        render_line_chart(df_instituicao, "Evolução por Instituição")
+        col1.subheader("Evolução por Instituição")
+        col1.line_chart(df_instituicao)
 
     with tb_share:
         st.markdown("### 📊 Participação por Data Selecionada")
         date = st.selectbox("📅 Selecione uma data",
                             options=sorted(df_instituicao.index),
                             key="data_participacao")
-        render_bar_chart(df_instituicao.loc[date], f"Participação em {date}")
+        col2.subheader(f"Participação em {date}")
+        col2.bar_chart(df_instituicao.loc[date])
 
     exp3 = st.expander("📊 Estatísticas Gerais", expanded=False)
 
@@ -1077,7 +921,8 @@ if file_upload:
             "Média 12M Diferença Mensal Absoluta",
             "Média 24M Diferença Mensal Absoluta",
         ]
-        render_line_chart(df_stats[abs_cols], "Evolução Absoluta")
+        col1.subheader("Evolução Absoluta")
+        col1.line_chart(df_stats[abs_cols])
 
     with tab_rel:
         rel_cols = [
@@ -1086,7 +931,8 @@ if file_upload:
             "Evolução 12M Relativa",
             "Evolução 24M Relativa",
         ]
-        render_line_chart(df_stats[rel_cols], "Evolução Relativa (%)")
+        col2.subheader("Evolução Relativa (%)")
+        col2.line_chart(df_stats[rel_cols])
 
     with st.expander("📊 Metas Financeiras", expanded=False):
         # Estrutura de tabs para organizar a seção de metas
@@ -1122,8 +968,8 @@ if file_upload:
             st.markdown("### 📈 Gráficos das Metas")
             # Aqui você pode adicionar gráficos relacionados às metas
             if 'data_inicio_meta' in locals():
-                render_line_chart(
-                    meses[["Atingimento Ano"]], "Atingimento de Meta Anual (%)")
+                st.subheader("Atingimento de Meta Anual (%)")
+                st.line_chart(meses[["Atingimento Ano"]])
 
         # ═══════════════════════════════════════════════════════════════════════════════════════
         # SEÇÃO 9: INFORMAÇÕES DO DATASET
