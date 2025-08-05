@@ -124,12 +124,9 @@ def render_line_chart(df, title="Gráfico de Linhas", container=None):
     """
     if not PLOTLY_AVAILABLE:
         # Fallback para gráfico nativo do Streamlit
-        warning_msg = "⚠️ Usando gráfico simplificado (Plotly indisponível)"
         if container:
-            container.warning(warning_msg)
             container.line_chart(df)
         else:
-            st.warning(warning_msg)
             st.line_chart(df)
         return
 
@@ -192,15 +189,12 @@ def render_bar_chart(data, title="Gráfico de Barras", container=None):
     """
     if not PLOTLY_AVAILABLE:
         # Fallback para gráfico nativo do Streamlit
-        warning_msg = "⚠️ Usando gráfico simplificado (Plotly indisponível)"
         if container:
-            container.warning(warning_msg)
             if isinstance(data, pd.Series):
                 container.bar_chart(data)
             else:
                 container.bar_chart(data)
         else:
-            st.warning(warning_msg)
             if isinstance(data, pd.Series):
                 st.bar_chart(data)
             else:
@@ -886,12 +880,6 @@ st.set_page_config(
 # Cabeçalho principal da aplicação
 st.title("💰 Finanças Pessoais")
 st.subheader("Seu painel de controle financeiro inteligente")
-
-# Verificação de dependências críticas
-if not PLOTLY_AVAILABLE:
-    st.warning(
-        "⚠️ Alguns gráficos podem não funcionar. Plotly não está disponível.")
-    st.info("🔄 Aguarde o carregamento das dependências ou recarregue a página.")
 
 # Seção de boas-vindas com cards informativos
 st.markdown("### ✨ Bem-vindo ao seu painel de controle financeiro!")
