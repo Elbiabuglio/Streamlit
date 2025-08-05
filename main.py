@@ -27,30 +27,16 @@ import datetime
 import calendar
 from datetime import date, timedelta
 
-# Verificação prévia de dependências críticas
-missing_deps = []
-try:
-    import plotly.express as px
-    import plotly.graph_objects as go
-except ImportError:
-    missing_deps.append("plotly")
-
-if missing_deps:
-    st.error(f"⚠️ Dependências não encontradas: {', '.join(missing_deps)}")
-    st.info("🔄 Aguarde o carregamento das dependências ou verifique o requirements.txt")
-
-# Imports com tratamento de erro robusto para Streamlit Cloud
+# Imports com tratamento de erro para Streamlit Cloud
+PLOTLY_AVAILABLE = False
 try:
     import plotly.express as px
     import plotly.graph_objects as go
     PLOTLY_AVAILABLE = True
-    print("✅ Plotly importado com sucesso!")
-except ImportError as e:
-    print(f"⚠️ Erro ao importar Plotly: {e}")
-    PLOTLY_AVAILABLE = False
-except Exception as e:
-    print(f"⚠️ Erro inesperado com Plotly: {e}")
-    PLOTLY_AVAILABLE = False
+except ImportError:
+    pass  # Será tratado mais tarde na interface
+except Exception:
+    pass  # Será tratado mais tarde na interface
 
 # Imports CSS/HTML temporariamente removidos para debug
 # from styles.calendar_css import get_calendar_css
@@ -888,6 +874,11 @@ st.set_page_config(
 # Cabeçalho principal da aplicação
 st.title("💰 Finanças Pessoais")
 st.subheader("Seu painel de controle financeiro inteligente")
+
+# Verificação de dependências críticas
+if not PLOTLY_AVAILABLE:
+    st.warning("⚠️ Alguns gráficos podem não funcionar. Plotly não está disponível.")
+    st.info("🔄 Aguarde o carregamento das dependências ou recarregue a página.")
 
 # Seção de boas-vindas com cards informativos
 st.markdown("### ✨ Bem-vindo ao seu painel de controle financeiro!")
