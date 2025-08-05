@@ -889,7 +889,8 @@ st.subheader("Seu painel de controle financeiro inteligente")
 
 # Verificação de dependências críticas
 if not PLOTLY_AVAILABLE:
-    st.warning("⚠️ Alguns gráficos podem não funcionar. Plotly não está disponível.")
+    st.warning(
+        "⚠️ Alguns gráficos podem não funcionar. Plotly não está disponível.")
     st.info("🔄 Aguarde o carregamento das dependências ou recarregue a página.")
 
 # Seção de boas-vindas com cards informativos
