@@ -29,15 +29,14 @@ from datetime import date, timedelta
 
 # Imports com tratamento de erro para Streamlit Cloud
 PLOTLY_AVAILABLE = False
-# Plotly temporariamente desabilitado para debug
-# try:
-#     import plotly.express as px
-#     import plotly.graph_objects as go
-#     PLOTLY_AVAILABLE = True
-# except ImportError:
-#     pass  # Será tratado mais tarde na interface
-# except Exception:
-#     pass  # Será tratado mais tarde na interface
+try:
+    import plotly.express as px
+    import plotly.graph_objects as go
+    PLOTLY_AVAILABLE = True
+except ImportError:
+    pass  # Será tratado mais tarde na interface
+except Exception:
+    pass  # Será tratado mais tarde na interface
 
 # Imports CSS/HTML com tratamento de erro
 try:
@@ -862,16 +861,27 @@ if file_upload:
 
     with tab_history:
         st.markdown("### 📈 Evolução Temporal por Instituição")
-        col1.subheader("Evolução por Instituição")
-        col1.line_chart(df_instituicao)
+        st.subheader("Evolução por Instituição")
+        if not df_instituicao.empty:
+            st.line_chart(df_instituicao)
+        else:
+            st.warning(
+                "Não há dados suficientes para gerar o gráfico de evolução temporal.")
 
     with tb_share:
         st.markdown("### 📊 Participação por Data Selecionada")
-        date = st.selectbox("📅 Selecione uma data",
-                            options=sorted(df_instituicao.index),
-                            key="data_participacao")
-        col2.subheader(f"Participação em {date}")
-        col2.bar_chart(df_instituicao.loc[date])
+        if not df_instituicao.empty:
+            date = st.selectbox("📅 Selecione uma data",
+                                options=sorted(df_instituicao.index),
+                                key="data_participacao")
+            st.subheader(f"Participação em {date}")
+            data_serie = df_instituicao.loc[date].dropna()
+            if not data_serie.empty:
+                st.bar_chart(data_serie)
+            else:
+                st.warning(f"Não há dados disponíveis para {date}.")
+        else:
+            st.warning("Não há dados suficientes para análise por data.")
 
     exp3 = st.expander("📊 Estatísticas Gerais", expanded=False)
 
@@ -921,8 +931,14 @@ if file_upload:
             "Média 12M Diferença Mensal Absoluta",
             "Média 24M Diferença Mensal Absoluta",
         ]
-        col1.subheader("Evolução Absoluta")
-        col1.line_chart(df_stats[abs_cols])
+        st.subheader("Evolução Absoluta")
+        # Verificar se as colunas existem e têm dados válidos
+        available_cols = [col for col in abs_cols if col in df_stats.columns]
+        if available_cols and not df_stats[available_cols].dropna().empty:
+            st.line_chart(df_stats[available_cols])
+        else:
+            st.warning(
+                "Dados insuficientes para gerar o gráfico de evolução absoluta.")
 
     with tab_rel:
         rel_cols = [
@@ -931,8 +947,15 @@ if file_upload:
             "Evolução 12M Relativa",
             "Evolução 24M Relativa",
         ]
-        col2.subheader("Evolução Relativa (%)")
-        col2.line_chart(df_stats[rel_cols])
+        st.subheader("Evolução Relativa (%)")
+        # Verificar se as colunas existem e têm dados válidos
+        available_rel_cols = [
+            col for col in rel_cols if col in df_stats.columns]
+        if available_rel_cols and not df_stats[available_rel_cols].dropna().empty:
+            st.line_chart(df_stats[available_rel_cols])
+        else:
+            st.warning(
+                "Dados insuficientes para gerar o gráfico de evolução relativa.")
 
     with st.expander("📊 Metas Financeiras", expanded=False):
         # Estrutura de tabs para organizar a seção de metas
@@ -967,9 +990,21 @@ if file_upload:
         with tab_graph:
             st.markdown("### 📈 Gráficos das Metas")
             # Aqui você pode adicionar gráficos relacionados às metas
-            if 'data_inicio_meta' in locals():
-                st.subheader("Atingimento de Meta Anual (%)")
-                st.line_chart(meses[["Atingimento Ano"]])
+            if 'meses' in locals() and not meses.empty:
+                if "Atingimento Ano" in meses.columns:
+                    st.subheader("Atingimento de Meta Anual (%)")
+                    # Filtrar apenas valores não nulos para o gráfico
+                    meses_chart = meses[["Atingimento Ano"]].dropna()
+                    if not meses_chart.empty:
+                        st.line_chart(meses_chart)
+                    else:
+                        st.info(
+                            "Dados insuficientes para gerar o gráfico de metas.")
+                else:
+                    st.warning("Dados de atingimento não disponíveis.")
+            else:
+                st.info(
+                    "Configure as metas na aba 'Configuração' para visualizar os gráficos.")
 
         # ═══════════════════════════════════════════════════════════════════════════════════════
         # SEÇÃO 9: INFORMAÇÕES DO DATASET
