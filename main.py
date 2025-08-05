@@ -123,11 +123,14 @@ def render_line_chart(df, title="Gráfico de Linhas", container=None):
         - Tratamento de erros robusto com fallbacks informativos
     """
     if not PLOTLY_AVAILABLE:
-        error_msg = "⚠️ Plotly não disponível para renderizar gráficos"
+        # Fallback para gráfico nativo do Streamlit
+        warning_msg = "⚠️ Usando gráfico simplificado (Plotly indisponível)"
         if container:
-            container.error(error_msg)
+            container.warning(warning_msg)
+            container.line_chart(df)
         else:
-            st.error(error_msg)
+            st.warning(warning_msg)
+            st.line_chart(df)
         return
 
     try:
@@ -188,11 +191,20 @@ def render_bar_chart(data, title="Gráfico de Barras", container=None):
         - Configurações otimizadas para visualização financeira
     """
     if not PLOTLY_AVAILABLE:
-        error_msg = "⚠️ Plotly não disponível para renderizar gráficos"
+        # Fallback para gráfico nativo do Streamlit
+        warning_msg = "⚠️ Usando gráfico simplificado (Plotly indisponível)"
         if container:
-            container.error(error_msg)
+            container.warning(warning_msg)
+            if isinstance(data, pd.Series):
+                container.bar_chart(data)
+            else:
+                container.bar_chart(data)
         else:
-            st.error(error_msg)
+            st.warning(warning_msg)
+            if isinstance(data, pd.Series):
+                st.bar_chart(data)
+            else:
+                st.bar_chart(data)
         return
 
     try:
