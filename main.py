@@ -27,13 +27,29 @@ import datetime
 import calendar
 from datetime import date, timedelta
 
-# Imports com tratamento de erro para Streamlit Cloud
+# Verificação prévia de dependências críticas
+missing_deps = []
+try:
+    import plotly.express as px
+    import plotly.graph_objects as go
+except ImportError:
+    missing_deps.append("plotly")
+
+if missing_deps:
+    st.error(f"⚠️ Dependências não encontradas: {', '.join(missing_deps)}")
+    st.info("🔄 Aguarde o carregamento das dependências ou verifique o requirements.txt")
+
+# Imports com tratamento de erro robusto para Streamlit Cloud
 try:
     import plotly.express as px
     import plotly.graph_objects as go
     PLOTLY_AVAILABLE = True
-except ImportError:
-    st.error("⚠️ Plotly não disponível. Instale com: pip install plotly")
+    print("✅ Plotly importado com sucesso!")
+except ImportError as e:
+    print(f"⚠️ Erro ao importar Plotly: {e}")
+    PLOTLY_AVAILABLE = False
+except Exception as e:
+    print(f"⚠️ Erro inesperado com Plotly: {e}")
     PLOTLY_AVAILABLE = False
 
 # Imports CSS/HTML temporariamente removidos para debug
