@@ -1,22 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Dashboard Financeiro Pessoal - Aplicação Streamlit
+Dashboard Financeiro Pessoal - Streamlit App
 
-Este módulo implementa um dashboard web interativo para controle e análise de finanças pessoais.
-Desenvolvido em Streamlit com funcionalidades avançadas de visualização e análise de dados.
-
-Principais funcionalidades:
-- Análise de dados financeiros com gráficos interativos
-- Sistema de metas com projeções automáticas
-- Calendário financeiro interativo
-- Integração com API SELIC do Banco Central
-- Renderização otimizada sem dependências PyArrow
-
-Autor: Elbia
-Versão: 3.0.1 - Rebuild forçado para Python 3.13
-Data: Agosto 2025
-GitHub: https://github.com/Elbiabuglio/Streamlit
+Features: Análise financeira, sistema de metas, calendário interativo, integração SELIC API
+Autor: Elbia | v3.0.1 | Python 3.13 | Agosto 2025
 Deploy: https://finance-control-esb.streamlit.app/
 """
 
@@ -38,6 +26,18 @@ except ImportError:
 except Exception:
     pass  # Será tratado mais tarde na interface
 
+# =============================================================================
+# CONSTANTES E CONFIGURAÇÕES GLOBAIS
+# =============================================================================
+
+# Meses e dias da semana em português
+MESES_PT = [
+    "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+]
+DIAS_SEMANA_ABREV = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
+DIAS_SEMANA_COMPLETOS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"]
+
 # Imports CSS/HTML com tratamento de erro
 try:
     from styles.calendar_css import get_calendar_css
@@ -48,16 +48,183 @@ except ImportError:
 except Exception:
     CSS_AVAILABLE = False
 
+# Imports de templates com tratamento de erro
+try:
+    from templates.html_templates import get_calendar_html_template, get_weekday_html, get_calendar_day_html, get_footer_html
+    TEMPLATES_AVAILABLE = True
+except ImportError:
+    TEMPLATES_AVAILABLE = False
+except Exception:
+    TEMPLATES_AVAILABLE = False
+
+# =============================================================================
+# FUNÇÕES UTILITÁRIAS CENTRALIZADAS
+# =============================================================================
+# Funções consolidadas para eliminar duplicações de código:
+# - Formatação monetária/percentual padronizada
+# - Seletores de data/calendário reutilizáveis  
+# - Formatação de DataFrames consistente
+# - Métricas e estilos CSS centralizados
+
+def format_currency(value, symbol="R$", decimals=2):
+    """Formatação monetária padronizada"""
+    return f"{symbol} {value:.{decimals}f}" if pd.notnull(value) else "-"
+
+def format_percentage(value, decimals=1):
+    """Formatação percentual padronizada"""
+    return f"{value:.{decimals}f}%" if pd.notnull(value) else "-"
+
+def create_month_year_selector(key_prefix, default_month=None, default_year=None):
+    """Cria seletores padronizados de mês/ano"""
+    col_mes, col_ano = st.columns(2)
+    
+    if default_month is None:
+        default_month = datetime.date.today().month
+    if default_year is None:
+        default_year = datetime.date.today().year
+
+    with col_mes:
+        mes_selecionado = st.selectbox(
+            "Mês",
+            options=list(range(1, 13)),
+            format_func=lambda x: MESES_PT[x-1],
+            index=default_month - 1,
+            key=f"{key_prefix}_mes"
+        )
+
+    with col_ano:
+        anos_disponiveis = list(range(default_year - 1, default_year + 3))
+        ano_selecionado = st.selectbox(
+            "Ano",
+            options=anos_disponiveis,
+            index=anos_disponiveis.index(default_year) if default_year in anos_disponiveis else 1,
+            key=f"{key_prefix}_ano"
+        )
+    
+    return mes_selecionado, ano_selecionado
+
+def create_calendar_day_style(dia, data_atual, hoje, weekend_style=True):
+    """Gera estilos CSS para dias do calendário"""
+    if data_atual == hoje:
+        # Dia atual - destaque especial
+        return f"""
+        <div style='
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+            padding: 8px;
+            border-radius: 8px;
+            font-weight: bold;
+            margin: 2px;
+        '>{dia}</div>
+        """
+    elif weekend_style and (data_atual.weekday() == 5 or data_atual.weekday() == 6):
+        # Fins de semana
+        return f"""
+        <div style='
+            background-color: #FFF5F5;
+            color: #FF6B6B;
+            text-align: center;
+            padding: 8px;
+            border-radius: 8px;
+            margin: 2px;
+            border: 1px solid #FFE5E5;
+        '>{dia}</div>
+        """
+    else:
+        # Dias normais
+        return f"""
+        <div style='
+            background-color: #F8F9FA;
+            text-align: center;
+            padding: 8px;
+            border-radius: 8px;
+            margin: 2px;
+            border: 1px solid #E9ECEF;
+        '>{dia}</div>
+        """
+
+def create_mini_calendar_day_style(dia, data_atual, data_selecionada, datas_disponiveis):
+    """Gera estilos CSS para mini calendários"""
+    if data_atual in datas_disponiveis:
+        if data_atual.day == data_selecionada:
+            # Dia selecionado
+            return f"""
+            <div style='
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                text-align: center;
+                padding: 4px;
+                border-radius: 4px;
+                font-size: 12px;
+                font-weight: bold;
+            '>{dia}</div>
+            """
+        else:
+            # Dia com dados
+            return f"""
+            <div style='
+                background-color: #E3F2FD;
+                color: #1976D2;
+                text-align: center;
+                padding: 4px;
+                border-radius: 4px;
+                font-size: 12px;
+                border: 1px solid #BBDEFB;
+            '>{dia}</div>
+            """
+    else:
+        # Dia sem dados
+        return f"""
+        <div style='
+            background-color: #F5F5F5;
+            color: #9E9E9E;
+            text-align: center;
+            padding: 4px;
+            border-radius: 4px;
+            font-size: 12px;
+        '>{dia}</div>
+        """
+
 
 def render_html_table(df, container=None):
-    """
-    Renderiza uma tabela usando st.dataframe nativo para maior estabilidade.
-    """
+    """Renderiza tabela com st.dataframe"""
     if container:
         container.dataframe(df, use_container_width=True)
     else:
         st.dataframe(df, use_container_width=True)
 
+def format_dataframe_for_display(df, currency_cols=None, percentage_cols=None):
+    """Aplica formatação consistente em DataFrames"""
+    df_display = df.copy()
+    
+    if currency_cols:
+        for col in currency_cols:
+            if col in df_display.columns:
+                df_display[col] = df_display[col].apply(format_currency)
+    
+    if percentage_cols:
+        for col in percentage_cols:
+            if col in df_display.columns:
+                df_display[col] = df_display[col].apply(format_percentage)
+                
+    return df_display
+
+def create_info_metrics(data_dict, columns=4):
+    """Cria métricas em colunas com formatação automática"""
+    cols = st.columns(columns)
+    for i, (label, value) in enumerate(data_dict.items()):
+        with cols[i % columns]:
+            if isinstance(value, (int, float)):
+                # Formatação automática
+                if value >= 1000000:
+                    st.metric(label, f"R$ {value/1000000:.1f}M")
+                elif value >= 1000:
+                    st.metric(label, f"R$ {value/1000:.1f}K")
+                else:
+                    st.metric(label, format_currency(value))
+            else:
+                st.metric(label, str(value))
 
 # Imports de templates com tratamento de erro
 try:
@@ -71,35 +238,7 @@ except Exception:
 
 @st.cache_data(ttl="1day")
 def get_selic():
-    """
-    Obtém dados históricos da taxa SELIC do Banco Central do Brasil.
-
-    Esta função faz uma requisição à API oficial do BCB para obter o histórico
-    completo das taxas SELIC, incluindo datas de vigência e valores. Os dados
-    são cached por 1 dia para otimizar performance e reduzir chamadas à API.
-
-    Returns:
-        pd.DataFrame: DataFrame contendo:
-            - DataInicioVigencia (date): Data de início da vigência da taxa
-            - DataFimVigencia (date): Data de fim da vigência da taxa  
-            - MetaSelic (float): Valor da meta SELIC em percentual
-            - Outras colunas fornecidas pela API do BCB
-
-    Raises:
-        requests.RequestException: Em caso de erro na requisição HTTP
-        KeyError: Se a estrutura da resposta da API for alterada
-
-    Exemplo:
-        >>> selic_df = get_selic()
-        >>> print(selic_df.columns)
-        ['DataInicioVigencia', 'DataFimVigencia', 'MetaSelic', ...]
-
-    Nota:
-        - Cache configurado para 1 dia (ttl="1day") via @st.cache_data
-        - Converte automaticamente strings de data para objetos date
-        - Preenche DataFimVigencia nula com data atual
-        - URL da API: https://www.bcb.gov.br/api/servico/sitebcb/historicotaxasjuros
-    """
+    """Obtém dados SELIC do BCB com cache de 1 dia"""
     url = "https://www.bcb.gov.br/api/servico/sitebcb/historicotaxasjuros"
     response = requests.get(url)
     if response.status_code == 200:
@@ -113,108 +252,24 @@ def get_selic():
 
 
 def create_calendar_widget():
-    """
-    Cria um widget de calendário interativo e visual para seleção de datas.
-
-    Esta função implementa um calendário customizado usando componentes nativos
-    do Streamlit, oferecendo uma interface mais intuitiva que os seletores de
-    data padrão. Inclui visualização mensal completa com destaque para dias
-    especiais e cálculo automático de informações úteis.
-
-    Returns:
-        datetime.date: Data do primeiro dia do mês selecionado
-
-    Features:
-        - Seletores de mês e ano em português
-        - Visualização em grid do calendário mensal
-        - Destaque visual para o dia atual
-        - Diferenciação de fins de semana com cores
-        - Informações complementares (dias úteis, total de dias)
-        - Interface responsiva com colunas adaptáveis
-
-    Exemplo:
-        >>> data_selecionada = create_calendar_widget()
-        >>> print(f"Mês selecionado: {data_selecionada.strftime('%B/%Y')}")
-
-    Nota:
-        - Usa st.columns() para layout responsivo
-        - Implementa CSS inline para estilização
-        - Calcula automaticamente dias úteis do mês
-        - Interface totalmente em português
-    """
-
-    # Interface do calendário (CSS temporariamente removido)
+    """Widget de calendário interativo com seleção de datas"""
+    # Interface do calendário
     col1, col2, col3 = st.columns([1, 2, 1])
 
     with col2:
-        # Seleção de mês e ano
-        col_mes, col_ano = st.columns(2)
-
-        meses = [
-            "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-            "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
-        ]
-
-        with col_mes:
-            mes_selecionado = st.selectbox(
-                "Mês",
-                options=list(range(1, 13)),
-                format_func=lambda x: meses[x-1],
-                index=datetime.date.today().month - 1,  # Mês atual como padrão
-                key="mes_calendario_widget"
-            )
-
-        with col_ano:
-            ano_atual = datetime.date.today().year
-            # Anos: 2024, 2025, 2026, 2027
-            anos_disponiveis = list(range(ano_atual - 1, ano_atual + 3))
-            ano_selecionado = st.selectbox(
-                "Ano",
-                options=anos_disponiveis,
-                index=anos_disponiveis.index(
-                    ano_atual) if ano_atual in anos_disponiveis else 1,
-                key="ano_calendario_widget"
-            )
+        # Usar função centralizada
+        mes_selecionado, ano_selecionado = create_month_year_selector("calendario_widget")
 
     # Criar o calendário
     cal = calendar.monthcalendar(ano_selecionado, mes_selecionado)
     hoje = datetime.date.today()
 
-    # Nomes dos dias da semana
-    dias_semana_abrev = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
+    # Mostrar informações do calendário
+    st.markdown(f"### 📅 {MESES_PT[mes_selecionado-1]} de {ano_selecionado}")
 
-    # Gerar calendário simples (removido HTML templates temporariamente)
-    # Templates removidos para debug
-    # weekday_template = get_weekday_html()
-    # day_template = get_calendar_day_html()
-
-    # Código de geração HTML do calendário removido temporariamente para debug
-    # for semana in cal:
-    #     for dia in semana:
-    #         if dia == 0:
-    #             dias_calendario_html += day_template.format(
-    #                 classes="calendar-day other-month", dia="")
-    #         else:
-    #             data_atual = date(ano_selecionado, mes_selecionado, dia)
-    #             classes = "calendar-day"
-    #
-    #             if data_atual == hoje:
-    #                 classes += " today"
-    #
-    #             dias_calendario_html += day_template.format(
-    #                 classes=classes, dia=dia)
-
-    # Mostrar informações do calendário de forma elegante
-    st.markdown(f"### 📅 {meses[mes_selecionado-1]} de {ano_selecionado}")
-
-    # Criar uma visualização mais elegante do calendário
-    dias_semana_completos = ["Domingo", "Segunda",
-                             "Terça", "Quarta", "Quinta", "Sexta", "Sábado"]
-    dias_semana_abrev = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
-
-    # Cabeçalho dos dias da semana com cores
+    # Cabeçalho dos dias da semana
     col_headers = st.columns(7)
-    for i, dia_semana in enumerate(dias_semana_abrev):
+    for i, dia_semana in enumerate(DIAS_SEMANA_ABREV):
         with col_headers[i]:
             if i == 0 or i == 6:  # Domingo ou Sábado
                 st.markdown(
@@ -222,7 +277,7 @@ def create_calendar_widget():
             else:
                 st.markdown(f"**{dia_semana}**")
 
-    # Exibir o calendário em grid
+    # Exibir calendário em grid
     for semana in cal:
         cols_semana = st.columns(7)
         for i, dia in enumerate(semana):
@@ -231,97 +286,22 @@ def create_calendar_widget():
                     st.markdown("<div style='height: 40px;'></div>",
                                 unsafe_allow_html=True)
                 else:
-                    data_atual = datetime.date(
-                        ano_selecionado, mes_selecionado, dia)
+                    data_atual = datetime.date(ano_selecionado, mes_selecionado, dia)
+                    # Usar função centralizada
+                    weekend_style = (i == 0 or i == 6)  # Fins de semana
+                    html_day = create_calendar_day_style(dia, data_atual, hoje, weekend_style)
+                    st.markdown(html_day, unsafe_allow_html=True)
 
-                    # Destacar o dia de hoje
-                    if data_atual == hoje:
-                        st.markdown(f"""
-                        <div style='
-                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                            color: white;
-                            text-align: center;
-                            padding: 8px;
-                            border-radius: 8px;
-                            font-weight: bold;
-                            margin: 2px;
-                        '>{dia}</div>
-                        """, unsafe_allow_html=True)
-                    # Destacar fins de semana
-                    elif i == 0 or i == 6:  # Domingo ou Sábado
-                        st.markdown(f"""
-                        <div style='
-                            background-color: #FFF5F5;
-                            color: #FF6B6B;
-                            text-align: center;
-                            padding: 8px;
-                            border-radius: 8px;
-                            margin: 2px;
-                            border: 1px solid #FFE5E5;
-                        '>{dia}</div>
-                        """, unsafe_allow_html=True)
-                    else:
-                        st.markdown(f"""
-                        <div style='
-                            background-color: #F8F9FA;
-                            text-align: center;
-                            padding: 8px;
-                            border-radius: 8px;
-                            margin: 2px;
-                            border: 1px solid #E9ECEF;
-                        '>{dia}</div>
-                        """, unsafe_allow_html=True)
-
-    # Retornar a data selecionada (para integração com o resto do código)
+    # Retornar data selecionada
     return datetime.date(ano_selecionado, mes_selecionado, 1)
 
 
 def calc_general_stats(df):
-    """
-    Calcula estatísticas financeiras avançadas e métricas de performance.
-
-    Esta função processa dados financeiros temporais para gerar indicadores
-    estatísticos abrangentes, incluindo médias móveis, diferenças mensais,
-    evolução temporal e métricas de crescimento relativo e absoluto.
-
-    Args:
-        df (pd.DataFrame): DataFrame com colunas 'Data' e 'Valor'
-                          - 'Data': Datas das observações (será usada como índice)
-                          - 'Valor': Valores financeiros (serão agregados por data)
-
-    Returns:
-        pd.DataFrame: DataFrame com estatísticas calculadas, contendo:
-            - Valor: Valor agregado por data
-            - Diferença Mensal Absoluta: Variação em R$ entre períodos
-            - Média 6M/12M/24M Diferença Mensal Absoluta: Médias móveis das diferenças
-            - Diferença Mensal Rel: Variação percentual entre períodos  
-            - Evolução 6M/12M/24M Diferença Mensal: Tendência das diferenças
-            - Evolução 6M/12M/24M Relativa: Evolução percentual das variações
-
-    Processo de cálculo:
-        1. Ordena dados cronologicamente e agrega por data
-        2. Calcula diferenças absolutas entre períodos consecutivos
-        3. Computa médias móveis de 6, 12 e 24 meses
-        4. Calcula variações percentuais (relativas)
-        5. Determina tendências de evolução temporal
-
-    Exemplo:
-        >>> df = pd.DataFrame({
-        ...     'Data': ['2024-01-01', '2024-02-01'], 
-        ...     'Valor': [1000, 1100]
-        ... })
-        >>> stats = calc_general_stats(df)
-        >>> print(stats['Diferença Mensal Absoluta'].iloc[-1])  # 100.0
-
-    Nota:
-        - Remove coluna auxiliar 'lag_1' no retorno
-        - Usa min_periods=1 nas rolling windows para incluir períodos iniciais
-        - Trata divisões por zero nas métricas relativas
-    """
-    # Ordenar por data antes de fazer os cálculos
+    """Calcula estatísticas financeiras avançadas e métricas de performance"""
+    # Ordenar e agrupar dados
     df_sorted = df.sort_values('Data')
     df_data = df_sorted.groupby(by="Data")["Valor"].sum().to_frame()
-    df_data = df_data.sort_index()  # Garantir ordem cronológica
+    df_data = df_data.sort_index()  # Ordem cronológica
 
     df_data["lag_1"] = df_data["Valor"].shift(1)
     df_data["Diferença Mensal Absoluta"] = df_data["Valor"] - df_data["lag_1"]
@@ -353,54 +333,8 @@ def calc_general_stats(df):
 
 
 def main_metas(df_stats):
-    """
-    Interface principal para configuração e cálculo de metas financeiras.
-
-    Esta função implementa um sistema completo de planejamento financeiro,
-    permitindo ao usuário configurar custos, receitas e objetivos, calculando
-    automaticamente projeções com base na taxa SELIC oficial do Banco Central.
-
-    Args:
-        df_stats (pd.DataFrame): DataFrame com estatísticas financeiras gerado
-                                por calc_general_stats(), contendo índice de datas
-                                e coluna 'Valor' com patrimônio por período.
-
-    Returns:
-        tuple: Tupla contendo:
-            - data_inicio_meta (datetime.date): Data de início escolhida para a meta
-            - valor_inicio (float): Patrimônio inicial na data escolhida  
-            - meta_estimada (float): Valor da meta financeira definida
-            - patrimonio_final (float): Patrimônio total esperado ao atingir a meta
-            - meses (pd.DataFrame): Cronograma mensal com projeções e atingimento
-
-    Interface Components:
-        - Campos de entrada para custos fixos e salários
-        - Seletor visual de data de início da meta
-        - Mini calendário para visualização temporal
-        - Integração automática com API SELIC
-        - Tabela de acompanhamento mensal
-        - Cálculos de rendimento e projeções
-
-    Recursos principais:
-        - Configuração flexível de parâmetros financeiros
-        - Integração com taxa SELIC oficial (API BCB)
-        - Cálculos automáticos de rendimento
-        - Projeções mensais e anuais
-        - Visualização de progresso em tempo real
-        - Tratamento de erros e fallbacks
-
-    Exemplo de uso:
-        >>> df_stats = calc_general_stats(df_financeiro)
-        >>> inicio, valor, meta, final, cronograma = main_metas(df_stats)
-        >>> print(f"Meta de R$ {meta:,.2f} iniciando em {inicio}")
-
-    Nota:
-        - Usa selectboxes em português para melhor UX
-        - Implementa validação de datas disponíveis
-        - Inclui tratamento de erro para API SELIC indisponível
-        - Renderiza tabela com render_html_table() para compatibilidade
-    """
-    # Seção de configuração de metas com melhor organização
+    """Interface de configuração e cálculo de metas financeiras"""
+    # Seção de configuração de metas
     st.markdown("### 🎯 Configuração de Metas Financeiras")
 
     # Container para os campos de entrada
@@ -423,18 +357,12 @@ def main_metas(df_stats):
     with st.container(border=True):
         st.markdown("#### 📅 Dados de Início da Meta")
 
-        # Usar selectboxes personalizados em português para melhor controle
+        # Extrair datas disponíveis do DataFrame
         datas_disponiveis = sorted(df_stats.index)
-
-        # Extrair anos e meses únicos das datas disponíveis
+        
+        # Usar função centralizada para seletores de mês/ano
         anos_unicos = sorted(list(set([d.year for d in datas_disponiveis])))
-
         col_ano_meta, col_mes_meta, col_dia_meta = st.columns(3)
-
-        meses_pt_meta = [
-            "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-            "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
-        ]
 
         with col_ano_meta:
             ano_meta_selecionado = st.selectbox(
@@ -452,7 +380,7 @@ def main_metas(df_stats):
             mes_meta_selecionado = st.selectbox(
                 "Mês da Meta",
                 options=meses_disponiveis_ano,
-                format_func=lambda x: meses_pt_meta[x-1],
+                format_func=lambda x: MESES_PT[x-1],  # Usar constante centralizada
                 index=0,
                 key="mes_meta_inicio"
             )
@@ -466,9 +394,7 @@ def main_metas(df_stats):
                 dia_meta_selecionado = st.selectbox(
                     "Dia da Meta",
                     options=dias_disponiveis_mes,
-                    index=len(dias_disponiveis_mes) -
-                    1,  # Último dia disponível
-                    # Chave única
+                    index=len(dias_disponiveis_mes) - 1,  # Último dia disponível
                     key=f"dia_meta_inicio_{ano_meta_selecionado}_{mes_meta_selecionado}"
                 )
             else:
@@ -507,9 +433,8 @@ def main_metas(df_stats):
             ano_meta_selecionado, mes_meta_selecionado)
 
         # Cabeçalho dos dias
-        dias_semana = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
         col_cal = st.columns(7)
-        for i, dia_sem in enumerate(dias_semana):
+        for i, dia_sem in enumerate(DIAS_SEMANA_ABREV):  # Usar constante centralizada
             with col_cal[i]:
                 if i == 0 or i == 6:  # Domingo ou Sábado
                     st.markdown(
@@ -518,7 +443,7 @@ def main_metas(df_stats):
                     st.markdown(
                         f"**<span style='font-size: 12px;'>{dia_sem}</span>**", unsafe_allow_html=True)
 
-        # Dias do calendário
+        # Dias do calendário usando função centralizada
         for semana in cal:
             col_sem = st.columns(7)
             for i, dia in enumerate(semana):
@@ -526,52 +451,15 @@ def main_metas(df_stats):
                     if dia == 0:
                         st.markdown("")
                     else:
-                        # Verificar se este dia tem dados disponíveis
-                        data_check = datetime.date(ano_meta_selecionado,
-                                                   mes_meta_selecionado, dia)
-
-                        if data_check in datas_disponiveis:
-                            if dia == dia_meta_selecionado:
-                                # Dia selecionado
-                                st.markdown(f"""
-                                <div style='
-                                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                                    color: white;
-                                    text-align: center;
-                                    padding: 4px;
-                                    border-radius: 4px;
-                                    font-size: 12px;
-                                    font-weight: bold;
-                                '>{dia}</div>
-                                """, unsafe_allow_html=True)
-                            else:
-                                # Dia com dados disponíveis
-                                st.markdown(f"""
-                                <div style='
-                                    background-color: #E3F2FD;
-                                    color: #1976D2;
-                                    text-align: center;
-                                    padding: 4px;
-                                    border-radius: 4px;
-                                    font-size: 12px;
-                                    border: 1px solid #BBDEFB;
-                                '>{dia}</div>
-                                """, unsafe_allow_html=True)
-                        else:
-                            # Dia sem dados
-                            st.markdown(f"""
-                            <div style='
-                                background-color: #F5F5F5;
-                                color: #9E9E9E;
-                                text-align: center;
-                                padding: 4px;
-                                border-radius: 4px;
-                                font-size: 12px;
-                            '>{dia}</div>
-                            """, unsafe_allow_html=True)
+                        # Usar função centralizada para estilo do mini calendário
+                        data_check = datetime.date(ano_meta_selecionado, mes_meta_selecionado, dia)
+                        html_day = create_mini_calendar_day_style(
+                            dia, data_check, dia_meta_selecionado, datas_disponiveis
+                        )
+                        st.markdown(html_day, unsafe_allow_html=True)
 
         st.markdown(
-            f"**Patrimônio no Início da Meta:** R$ {valor_inicio:,.2f}")
+            f"**Patrimônio no Início da Meta:** {format_currency(valor_inicio)}")  # Usar função centralizada
 
     # Container para configuração da SELIC
     with st.container(border=True):
@@ -607,12 +495,12 @@ def main_metas(df_stats):
     with col1_pot:
         with st.container(border=True):
             st.markdown("**Potencial Arrecadação Mensal**")
-            st.markdown(f"R$ {mensal:.2f}")
+            st.markdown(format_currency(mensal))  # Usar função centralizada
 
     with col2_pot:
         with st.container(border=True):
             st.markdown("**Potencial Arrecadação Anual**")
-            st.markdown(f"R$ {anual:.2f}")
+            st.markdown(format_currency(anual))  # Usar função centralizada
 
     # Container para configuração de metas
     with st.container(border=True):
@@ -663,35 +551,21 @@ def main_metas(df_stats):
     # Container para a tabela de resultados
     st.markdown("#### 📊 Acompanhamento de Metas")
     with st.container(border=True):
-        # Configurar formatação das colunas
-        meses_config = {
-            "Meta Mensal": st.column_config.NumberColumn("Meta Mensal", format="R$ %.2f"),
-            "Atingimento Esperado": st.column_config.NumberColumn("Atingimento Esperado", format="%.3f"),
-            "Valor": st.column_config.NumberColumn("Valor", format="R$ %.2f"),
-            "Atingimento (%)": st.column_config.NumberColumn("Atingimento (%)", format="%.1f%%"),
-            "Atingimento Ano": st.column_config.NumberColumn("Atingimento Ano", format="%.1f%%")
-        }
-
-        # Formatando meses para exibição
+        # Configurando meses para exibição usando função centralizada
         meses_display = meses.copy()
 
-        # Formatando colunas de valor (que realmente existem)
-        meses_display["Meta Mensal"] = meses_display["Meta Mensal"].apply(
-            lambda x: f"R$ {x:.2f}" if pd.notnull(x) else "-"
-        )
-        meses_display["Valor"] = meses_display["Valor"].apply(
-            lambda x: f"R$ {x:.2f}" if pd.notnull(x) else "-"
-        )
-
-        # Formatando colunas percentuais
-        meses_display["Atingimento (%)"] = meses_display["Atingimento (%)"].apply(
-            lambda x: f"{x:.1f}%" if pd.notnull(x) else "-"
-        )
-        meses_display["Atingimento Ano"] = meses_display["Atingimento Ano"].apply(
-            lambda x: f"{x:.1f}%" if pd.notnull(x) else "-"
+        # Definir colunas de moeda e percentual
+        currency_cols = ["Meta Mensal", "Valor"]
+        percentage_cols = ["Atingimento (%)", "Atingimento Ano"]
+        
+        # Aplicar formatação usando função centralizada
+        meses_display = format_dataframe_for_display(
+            meses_display, 
+            currency_cols=currency_cols, 
+            percentage_cols=percentage_cols
         )
 
-        # Formatando Atingimento Esperado (valor decimal)
+        # Formatando Atingimento Esperado (valor decimal) - caso especial
         meses_display["Atingimento Esperado"] = meses_display["Atingimento Esperado"].apply(
             lambda x: f"{x:.3f}" if pd.notnull(x) else "-"
         )
@@ -703,29 +577,29 @@ def main_metas(df_stats):
 
 
 # =============================================================================
-# CONFIGURAÇÃO PRINCIPAL DA APLICAÇÃO STREAMLIT
+# CONFIGURAÇÃO DA APLICAÇÃO
 # =============================================================================
 
-# Configuração da página com layout otimizado
+# Configuração da página
 st.set_page_config(
-    page_title="Finanças Pessoais",        # Título da aba do navegador
-    page_icon="💰",                        # Ícone da aba do navegador
-    layout="wide",                         # Layout amplo para melhor uso do espaço
-    initial_sidebar_state="collapsed"      # Sidebar recolhida por padrão
+    page_title="Finanças Pessoais",
+    page_icon="💰",
+    layout="wide",
+    initial_sidebar_state="collapsed"
 )
 
 # =============================================================================
-# CABEÇALHO E SEÇÃO DE BOAS-VINDAS
+# CABEÇALHO E INTERFACE PRINCIPAL
 # =============================================================================
 
-# Cabeçalho principal da aplicação
+# Cabeçalho principal
 st.title("💰 Finanças Pessoais")
 st.subheader("Seu painel de controle financeiro inteligente")
 
-# Seção de boas-vindas com cards informativos
+# Seção de boas-vindas
 st.markdown("### ✨ Bem-vindo ao seu painel de controle financeiro!")
 
-# Cards com principais funcionalidades em layout de 4 colunas
+# Cards com funcionalidades
 col1, col2, col3, col4 = st.columns(4)
 with col1:
     st.info("📈 **Monitorar receitas**")
@@ -737,110 +611,91 @@ with col4:
     st.info("📅 **Visualizar datas importantes**")
 
 st.markdown("*Organize sua vida financeira de forma simples e eficiente.*")
-st.markdown("---")  # Separador visual
+st.markdown("---")
 
 # =============================================================================
-# SEÇÃO DO CALENDÁRIO FINANCEIRO INTERATIVO
+# CALENDÁRIO FINANCEIRO
 # =============================================================================
 
-# Expander para o calendário - permite visualização opcional
+# Expander para o calendário
 with st.expander("📅 Calendário Financeiro", expanded=False):
     st.markdown("### 🗓️ Visualize datas importantes para suas finanças")
 
-    # Chama função para criar widget de calendário customizado
+    # Widget de calendário
     data_calendario = create_calendar_widget()
 
-    # Seção de informações complementares sobre o mês selecionado
+    # Informações complementares
     col1, col2, col3 = st.columns(3)
 
-    # Lista de meses em português para exibição localizada
-    meses_pt = [
-        "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-        "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
-    ]
-
-    # Card 1: Mês e ano selecionados
+    # Cards informativos
     with col1:
-        mes_nome = meses_pt[data_calendario.month - 1]
+        mes_nome = MESES_PT[data_calendario.month - 1]  # Constante centralizada
         st.info(f"📅 **Mês selecionado:** {mes_nome}/{data_calendario.year}")
 
-    # Card 2: Total de dias no mês
     with col2:
         dias_no_mes = calendar.monthrange(
             data_calendario.year, data_calendario.month)[1]
         st.info(f"📊 **Dias no mês:** {dias_no_mes} dias")
 
-    # Card 3: Dias úteis (segunda a sexta)
     with col3:
         dias_uteis = len([d for d in range(1, dias_no_mes + 1)
                          if datetime.date(data_calendario.year, data_calendario.month, d).weekday() < 5])
         st.info(f"💼 **Dias úteis:** {dias_uteis} dias")
 
 # =============================================================================
-# SEÇÃO DE UPLOAD E PROCESSAMENTO DE DADOS
+# UPLOAD E PROCESSAMENTO DE DADOS
 # =============================================================================
 
 st.markdown("### 📂 Carregamento de Dados")
 
-# Instruções para o usuário sobre formato esperado
+# Instruções para o usuário
 st.info("💡 **Como usar:** Carregue seu arquivo CSV com dados financeiros para começar a análise. O arquivo deve conter as colunas: Data, Valor e Instituição.")
 
-# Widget de upload de arquivo com configurações específicas
+# Widget de upload
 file_upload = st.file_uploader(
     "📥 Selecione seu arquivo CSV",
-    type=["csv"],                           # Aceita apenas arquivos CSV
+    type=["csv"],
     help="Carregue um arquivo CSV com suas informações financeiras"
 )
 
-# Processamento condicional - só executa se arquivo foi carregado
+# Processamento se arquivo foi carregado
 if file_upload:
 
-    # =============================================================================
-    # PROCESSAMENTO E VALIDAÇÃO DOS DADOS CARREGADOS
-    # =============================================================================
-
-    # Leitura do arquivo CSV
+    # Leitura do CSV
     df = pd.read_csv(file_upload)
 
-    # Tratamento robusto de diferentes formatos de data
-    # Tentativa 1: Formato brasileiro DD/MM/YYYY
+    # Tratamento de diferentes formatos de data
+    # Tentativa 1: DD/MM/YYYY
     try:
         df["Data"] = pd.to_datetime(df["Data"], format="%d/%m/%Y").dt.date
     except:
-        # Tentativa 2: Formato ISO YYYY-MM-DD
+        # Tentativa 2: YYYY-MM-DD
         try:
             df["Data"] = pd.to_datetime(df["Data"], format="%Y-%m-%d").dt.date
         except:
-            # Tentativa 3: Detecção automática de formato
+            # Tentativa 3: Detecção automática
             try:
                 df["Data"] = pd.to_datetime(
                     df["Data"], infer_datetime_format=True).dt.date
             except Exception as e:
-                # Se todas as tentativas falharem, mostra erro e para execução
+                # Erro: para execução
                 st.error(f"Erro ao converter datas: {e}")
                 st.stop()
 
-    # =============================================================================
-    # SEÇÃO 1: VISUALIZAÇÃO DOS DADOS BRUTOS
-    # =============================================================================
-
-    # Expander para visualização opcional dos dados carregados
+    # Visualização dos dados brutos
     exp1 = st.expander("📊 Visualizar Dados", expanded=False)
 
-    # Conversão da coluna Valor para float (garantir tipo numérico)
+    # Conversão e formatação
     df["Valor"] = df["Valor"].astype(float)
 
-    # Formatação da coluna Valor para exibição (com símbolo R$)
-    df_display = df.copy()
-    df_display["Valor"] = df_display["Valor"].apply(lambda x: f"R$ {x:.2f}")
+    # Formatação usando função centralizada
+    df_display = format_dataframe_for_display(df, currency_cols=["Valor"])
 
-    # Renderização da tabela usando função customizada (sem PyArrow)
+    # Renderização da tabela
     exp1.markdown("### 💾 Dados Carregados")
     render_html_table(df_display, exp1)
 
-    # =============================================================================
-    # SEÇÃO 2: ANÁLISE POR INSTITUIÇÃO FINANCEIRA
-    # =============================================================================
+    # Análise por instituição
 
     exp2 = st.expander("📊 Análise por Instituição", expanded=False)
     df_instituicao = df.pivot_table(
@@ -851,12 +706,10 @@ if file_upload:
 
     with tab_data:
         st.markdown("### 🏦 Dados Organizados por Instituição")
-        # Formatando valores para exibição em tabela
-        df_instituicao_display = df_instituicao.copy()
-        for col in df_instituicao_display.columns:
-            df_instituicao_display[col] = df_instituicao_display[col].apply(
-                lambda x: f"R$ {x:.2f}" if pd.notnull(x) else "-"
-            )
+        # Formatação usando função centralizada
+        df_instituicao_display = format_dataframe_for_display(
+            df_instituicao, currency_cols=df_instituicao.columns.tolist()
+        )
         render_html_table(df_instituicao_display)
 
     with tab_history:
@@ -865,8 +718,7 @@ if file_upload:
         if not df_instituicao.empty:
             st.line_chart(df_instituicao)
         else:
-            st.warning(
-                "Não há dados suficientes para gerar o gráfico de evolução temporal.")
+            st.warning("Dados insuficientes para gráfico de evolução temporal.")
 
     with tb_share:
         st.markdown("### 📊 Participação por Data Selecionada")
@@ -879,9 +731,9 @@ if file_upload:
             if not data_serie.empty:
                 st.bar_chart(data_serie)
             else:
-                st.warning(f"Não há dados disponíveis para {date}.")
+                st.warning(f"Dados indisponíveis para {date}.")
         else:
-            st.warning("Não há dados suficientes para análise por data.")
+            st.warning("Dados insuficientes para análise por data.")
 
     exp3 = st.expander("📊 Estatísticas Gerais", expanded=False)
 
@@ -906,22 +758,15 @@ if file_upload:
         ["📊 Dados", "📈 Histórico de Evolução", "📉 Crescimento Relativo"])
 
     with tab_stats:
-        # Formatando df_stats para exibição
-        df_stats_display = df_stats.copy()
-        # Formatando colunas de valor (R$)
-        valor_cols = [
-            col for col in df_stats_display.columns if 'Valor' in col or 'Diferença' in col]
-        for col in valor_cols:
-            if 'Rel' not in col:  # Se não for relativo (percentual)
-                df_stats_display[col] = df_stats_display[col].apply(
-                    lambda x: f"R$ {x:.2f}" if pd.notnull(x) else "-"
-                )
-        # Formatando colunas percentuais
-        perc_cols = [col for col in df_stats_display.columns if 'Rel' in col]
-        for col in perc_cols:
-            df_stats_display[col] = df_stats_display[col].apply(
-                lambda x: f"{x:.2%}" if pd.notnull(x) else "-"
-            )
+        # Formatação usando função centralizada
+        valor_cols = [col for col in df_stats.columns if 'Valor' in col or ('Diferença' in col and 'Rel' not in col)]
+        perc_cols = [col for col in df_stats.columns if 'Rel' in col]
+        
+        df_stats_display = format_dataframe_for_display(
+            df_stats, 
+            currency_cols=valor_cols,
+            percentage_cols=perc_cols
+        )
         render_html_table(df_stats_display)
 
     with tab_abs:
@@ -932,13 +777,12 @@ if file_upload:
             "Média 24M Diferença Mensal Absoluta",
         ]
         st.subheader("Evolução Absoluta")
-        # Verificar se as colunas existem e têm dados válidos
+        # Verificar colunas disponíveis
         available_cols = [col for col in abs_cols if col in df_stats.columns]
         if available_cols and not df_stats[available_cols].dropna().empty:
             st.line_chart(df_stats[available_cols])
         else:
-            st.warning(
-                "Dados insuficientes para gerar o gráfico de evolução absoluta.")
+            st.warning("Dados insuficientes para gráfico de evolução absoluta.")
 
     with tab_rel:
         rel_cols = [
@@ -948,48 +792,40 @@ if file_upload:
             "Evolução 24M Relativa",
         ]
         st.subheader("Evolução Relativa (%)")
-        # Verificar se as colunas existem e têm dados válidos
+        # Verificar colunas disponíveis
         available_rel_cols = [
             col for col in rel_cols if col in df_stats.columns]
         if available_rel_cols and not df_stats[available_rel_cols].dropna().empty:
             st.line_chart(df_stats[available_rel_cols])
         else:
-            st.warning(
-                "Dados insuficientes para gerar o gráfico de evolução relativa.")
+            st.warning("Dados insuficientes para gráfico de evolução relativa.")
 
     with st.expander("📊 Metas Financeiras", expanded=False):
-        # Estrutura de tabs para organizar a seção de metas
+        # Tabs para organizar seção de metas
         tab_main, tab_data_meta, tab_graph = st.tabs(
             ["📋 Configuração", "📊 Dados", "📈 Gráficos"])
 
         with tab_main:
-            # Chamada da função de metas que retorna os valores solicitados
+            # Função principal de metas
             data_inicio_meta, valor_inicio, meta_estimada, patrimonio_final, meses = main_metas(
                 df_stats)
 
         with tab_data_meta:
             st.markdown("### 📊 Dados das Metas")
-            # Aqui você pode adicionar análises dos dados das metas
+            # Função centralizada para métricas
             if 'data_inicio_meta' in locals():
-                col1, col2, col3, col4 = st.columns(4)
-
-                with col1:
-                    st.metric("Data Início",
-                              data_inicio_meta.strftime("%d/%m/%Y"))
-
-                with col2:
-                    st.metric("Valor Inicial", f"R$ {valor_inicio:,.2f}")
-
-                with col3:
-                    st.metric("Meta Estimada", f"R$ {meta_estimada:,.2f}")
-
-                with col4:
-                    st.metric("Patrimônio Final",
-                              f"R$ {patrimonio_final:,.2f}")
+                metas_metrics = {
+                    "Data Início": data_inicio_meta.strftime("%d/%m/%Y"),
+                    "Valor Inicial": valor_inicio,
+                    "Meta Estimada": meta_estimada,
+                    "Patrimônio Final": patrimonio_final
+                }
+                
+                create_info_metrics(metas_metrics, columns=4)
 
         with tab_graph:
             st.markdown("### 📈 Gráficos das Metas")
-            # Aqui você pode adicionar gráficos relacionados às metas
+            # Gráficos relacionados às metas
             if 'meses' in locals() and not meses.empty:
                 if "Atingimento Ano" in meses.columns:
                     st.subheader("Atingimento de Meta Anual (%)")
@@ -998,65 +834,47 @@ if file_upload:
                     if not meses_chart.empty:
                         st.line_chart(meses_chart)
                     else:
-                        st.info(
-                            "Dados insuficientes para gerar o gráfico de metas.")
+                        st.info("Dados insuficientes para gráfico de metas.")
                 else:
-                    st.warning("Dados de atingimento não disponíveis.")
+                    st.warning("Dados de atingimento indisponíveis.")
             else:
-                st.info(
-                    "Configure as metas na aba 'Configuração' para visualizar os gráficos.")
+                st.info("Configure metas na aba 'Configuração' para ver gráficos.")
 
-        # ═══════════════════════════════════════════════════════════════════════════════════════
-        # SEÇÃO 9: INFORMAÇÕES DO DATASET
-        # ═══════════════════════════════════════════════════════════════════════════════════════
-        # Esta seção apresenta um resumo estatístico completo dos dados carregados,
-        # incluindo informações sobre volume de dados, períodos analisados e instituições.
-        # Permite ao usuário ter uma visão geral da qualidade e abrangência dos dados.
+    # Informações do dataset
 
     with st.expander("ℹ️ Informações do Dataset"):
         st.markdown("### 📊 Resumo dos Dados Carregados")
 
-        # Métricas principais do dataset em colunas organizadas
-        col1, col2, col3 = st.columns(3)
+        # Métricas principais usando função centralizada
+        dataset_metrics = {
+            "📝 Total de Registros": len(df),
+            "📅 Períodos Analisados": len(df['Data'].unique()),
+            "🏦 Instituições": len(df['Instituição'].unique())
+        }
+        
+        create_info_metrics(dataset_metrics, columns=3)
 
-        # Primeira coluna: Total de registros financeiros processados
-        with col1:
-            st.metric("📝 Total de Registros", f"{len(df):,}")
-
-        # Segunda coluna: Quantidade de períodos únicos (meses) analisados
-        with col2:
-            st.metric("📅 Períodos Analisados", len(df['Data'].unique()))
-
-        # Terceira coluna: Número de instituições financeiras distintas
-        with col3:
-            st.metric("🏦 Instituições", len(df['Instituição'].unique()))
-
-        # Informações detalhadas sobre período e instituições
+        # Informações detalhadas
         col_period, col_inst = st.columns(2)
 
-        # Coluna esquerda: Intervalo de datas completo do dataset
+        # Período analisado
         with col_period:
-            st.info(
-                f"📈 **Período Analisado:** De {min(df['Data']).strftime('%d/%m/%Y')} até {max(df['Data']).strftime('%d/%m/%Y')}")
+            st.info(f"📈 **Período:** {min(df['Data']).strftime('%d/%m/%Y')} até {max(df['Data']).strftime('%d/%m/%Y')}")
 
-        # Coluna direita: Lista de todas as instituições presentes nos dados
+        # Lista de instituições
         with col_inst:
             instituicoes_list = ', '.join(df['Instituição'].unique().tolist())
             st.info(f"🏢 **Instituições:** {instituicoes_list}")
 
-# ═════════════════════════════════════════════════════════════════════════════════════════════
-# RODAPÉ DA APLICAÇÃO
-# ═════════════════════════════════════════════════════════════════════════════════════════════
-# Seção final da aplicação contendo dicas de uso e orientações para o usuário.
-# Fornece informações importantes sobre como maximizar o uso da ferramenta.
+# =============================================================================
+# RODAPÉ
+# =============================================================================
 
-# Separador visual entre o conteúdo principal e o rodapé
+# Separador visual
 st.markdown("---")
 
-# Dica sobre o uso do calendário interativo
-st.markdown(
-    "📱 **Dica:** Use o calendário para visualizar informações específicas de cada mês!")
+# Dicas de uso
+st.markdown("📱 **Dica:** Use o calendário para visualizar informações específicas de cada mês!")
 
-# Orientação sobre manutenção dos dados para melhores resultados
-st.markdown(
-    "💡 Para melhores resultados, mantenha seus dados financeiros sempre atualizados.")
+# Orientação sobre manutenção dos dados
+st.markdown("💡 Para melhores resultados, mantenha seus dados financeiros sempre atualizados.")
